@@ -2,6 +2,7 @@ import Image from "next/image";
 import { ArrowRightIcon } from "./icons";
 import { PortalFieldBackground } from "./PortalFieldBackground";
 import { SlidingTextButton } from "./SlidingTextButton";
+import { VideoCarousel } from "./VideoCarousel";
 import { WaveDivider } from "./WaveDivider";
 
 const UNS = "https://images.unsplash.com";
@@ -72,15 +73,16 @@ export function Hero() {
         {/* Columna visual */}
         <div className="relative flex min-h-[520px] w-full flex-1 items-center justify-center py-10">
           {/** sustituir por carrusel de videos de framer (pedir videos de 15s) https://framer.com/m/VideoCarousel-3ACghD.js@gN3OxtTWepzM2Kd4SUcE */}
-          <div className="relative z-10 aspect-[3/4] w-64 overflow-hidden rounded-[2.5rem] bg-[#FFF0E6] shadow-2xl sm:w-80 lg:w-96">
-            <Image
+          <div className="relative z-10 aspect-[3/4] w-64 rounded-[2.5rem] shadow-2xl sm:w-80 lg:w-96">
+            {/* <Image
               src={`${UNS}/photo-1525786210598-d527194d3e9a?w=700&h=900&fit=crop&auto=format`}
               alt="Persona con armazones de OptiPana"
               fill
               priority
               sizes="(max-width: 768px) 90vw, 25rem"
               className="object-cover"
-            />
+            /> */}
+            <VideoCarousel />
           </div>
         </div>
       </div>
