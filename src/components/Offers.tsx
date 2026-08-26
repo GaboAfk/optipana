@@ -219,7 +219,7 @@ export function Offers() {
   return (
     <section id="ofertas" className="relative bg-[#F7F7F9] py-16 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-10 text-center">
+        <div className="mb-4 text-center md:mb-10 md:block" style={{ display: 'none' }}>
           <span className="inline-flex items-center gap-2 rounded-full bg-brand-orange px-5 py-2 text-xs font-bold uppercase tracking-widest text-white">
             <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-white" />
             Ofertas por tiempo limitado
@@ -230,8 +230,18 @@ export function Offers() {
             Un contenedor alto (300vh) que se queda "pegado" (sticky)
             mientras las tarjetas se desplazan horizontalmente.          */}
         <div ref={mobileScrollRef} className="relative h-[300vh] md:hidden">
-          <div className="sticky top-0 flex h-screen items-center overflow-hidden">
-            <motion.div style={{ x }} className="flex gap-5 pl-4 pr-4">
+          <div className="sticky top-0 flex h-screen flex-col overflow-hidden">
+            {/* Badge arriba en mobile */}
+            <div className="pt-16 text-center">
+              <span className="inline-flex items-center gap-2 rounded-full bg-brand-orange px-5 py-2 text-xs font-bold uppercase tracking-widest text-white">
+                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-white" />
+                Ofertas por tiempo limitado
+              </span>
+            </div>
+
+            {/* Tarjetas centradas en el espacio restante */}
+            <div className="flex flex-1 items-center overflow-hidden">
+              <motion.div style={{ x }} className="flex gap-5 pl-4 pr-4">
               {CARDS.map(({ bg, shadow, Component }, i) => (
                 <div
                   key={i}
@@ -241,10 +251,11 @@ export function Offers() {
                 </div>
               ))}
             </motion.div>
+            </div>
 
             {/* Indicador de progreso */}
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
-              <div className="h-1 w-24 overflow-hidden rounded-full bg-white/20">
+            <div className="pb-8 pt-4 text-center">
+              <div className="mx-auto h-1 w-24 overflow-hidden rounded-full bg-white/20">
                 <motion.div
                   style={{ scaleX: scrollYProgress }}
                   className="h-full origin-left rounded-full bg-brand-orange"

@@ -9,6 +9,14 @@ const UNS = "https://images.unsplash.com";
 export function Hero() {
   return (
     <section id="inicio" className="relative overflow-hidden bg-white pt-16 md:pt-16">
+      {/* Portal Field detrás de todo el hero — cubre texto e imagen */}
+      <div className="absolute inset-0 z-0 overflow-hidden">
+        <PortalFieldBackground
+          className="absolute left-1/2 top-1/2 aspect-square w-[250vw] -translate-x-1/2 -translate-y-1/2 sm:w-[100rem] lg:w-[120rem]"
+          opacity={0.55}
+        />
+      </div>
+
       <div className="relative z-10 mx-auto flex max-w-7xl flex-col items-center gap-12 px-5 py-10 sm:px-8 md:flex-row md:gap-16 md:py-20">
         {/* Columna de texto */}
         <div className="flex-1 space-y-6 text-center md:text-left">
@@ -63,13 +71,6 @@ export function Hero() {
 
         {/* Columna visual */}
         <div className="relative flex min-h-[520px] w-full flex-1 items-center justify-center py-10">
-          {/* Portal Field detrás de la imagen y del texto — z negativo para quedar siempre de fondo, sin recorte.
-              pointer-events habilitado para que el aro reaccione al acercarse el mouse (los elementos
-              en primer plano, imagen y botón, siguen recibiendo los clics con normalidad). */}
-          <PortalFieldBackground
-            className="absolute left-1/2 top-1/2 -z-10 aspect-square w-[40rem] -translate-x-1/2 -translate-y-1/2 sm:w-[44rem] lg:w-[48rem]"
-            opacity={0.55}
-          />
           {/** sustituir por carrusel de videos de framer (pedir videos de 15s) https://framer.com/m/VideoCarousel-3ACghD.js@gN3OxtTWepzM2Kd4SUcE */}
           <div className="relative z-10 aspect-[3/4] w-64 overflow-hidden rounded-[2.5rem] bg-[#FFF0E6] shadow-2xl sm:w-80 lg:w-96">
             <Image
