@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll, useTransform, useInView, animate } from "framer-motion";
 import { ClockIcon, SparkleIcon, TagIcon, WalletIcon } from "./icons";
 import { Blob } from "./Blob";
 
@@ -49,6 +49,25 @@ function CountdownBox({ value, label }: { value: string; label: string }) {
       <span className="mt-1 text-[10px] font-bold uppercase tracking-wider opacity-80">{label}</span>
     </div>
   );
+}
+
+// Cuenta animada de `from` a `to` cuando el elemento entra en pantalla
+function useCountUp(from: number, to: number, duration = 1.5) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once: true, amount: 0.5 });
+  const [value, setValue] = useState(from);
+
+  useEffect(() => {
+    if (!inView) return;
+    const controls = animate(from, to, {
+      duration,
+      ease: "easeOut",
+      onUpdate: (v) => setValue(Math.round(v)),
+    });
+    return () => controls.stop();
+  }, [inView, from, to, duration]);
+
+  return { ref, value };
 }
 
 // Variantes desktop: fade-up escalonado (estilo AOS)
@@ -100,6 +119,7 @@ function Card2x1({ countdown }: { countdown: ReturnType<typeof useOfferCountdown
 }
 
 function Card0Percent() {
+  const { ref, value } = useCountUp(50, 0, 2);
   return (
     <>
       <div className="pointer-events-none absolute -right-8 -top-8 opacity-10">
@@ -109,7 +129,9 @@ function Card0Percent() {
         <WalletIcon className="mr-1 inline h-3.5 w-3.5" />
         Financiamiento disponible
       </span>
-      <p className="mb-2 font-display text-8xl font-bold leading-none">0%</p>
+      <p className="mb-2 font-display text-8xl font-bold leading-none">
+        <span ref={ref}>{value}%</span>
+      </p>
       <p className="mb-2 font-display text-xl font-bold">Llévatelos hoy. Paga después.</p>
       <p className="mb-5 text-sm leading-relaxed text-white/80">
         0% de inicial — financia tus lentes en <strong className="font-display text-lg">6 cuotas</strong> cómodas.
@@ -129,6 +151,7 @@ function Card0Percent() {
 }
 
 function CardPrecios() {
+  const { ref, value } = useCountUp(100, 50, 2);
   return (
     <>
       <div className="pointer-events-none absolute -right-8 -top-8 opacity-10">
@@ -151,7 +174,9 @@ function CardPrecios() {
           <p className="text-xs font-bold text-white/60">locales</p>
         </div>
         <div className="rounded-2xl bg-white/10 p-3 text-center">
-          <p className="font-display text-2xl font-bold text-[#FA5800]">-50%</p>
+          <p className="font-display text-2xl font-bold text-[#FA5800]">
+            <span ref={ref}>-{value}%</span>
+          </p>
           <p className="text-xs font-bold text-white/60">en selección</p>
         </div>
       </div>
