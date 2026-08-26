@@ -22,6 +22,7 @@ declare global {
             provider?: string;
             model?: string;
             input_image?: string;
+            input_images?: string[];
             input_image_mime_type?: string;
             test_mode?: boolean;
           },
@@ -40,7 +41,30 @@ declare global {
   }
 }
 
-/** Extrae el texto plano de una respuesta de puter.ai.chat() */
+/** Convierte una imagen (URL o cross-origin) en un HTMLImageElement cargado */
+function loadImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`No se pudo cargar la imagen: ${url}`));
+    img.src = url;
+  });
+}
+
+/** Convierte un HTMLImageElement a base64 crudo con su MIME */
+function imageToBase64(img: HTMLImageElement, mime = "image/jpeg", quality = 0.9): { data: string; mime: string } {
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("No se pudo crear el canvas");
+  ctx.drawImage(img, 0, 0);
+  const dataUrl = canvas.toDataURL(mime, quality);
+  const [meta, base64] = dataUrl.split(",");
+  const outMime = meta.match(/data:(.*?);/)?.[1] ?? mime;
+  return { data: base64, mime: outMime };
+}
 function extractChatText(response: {
   message?: { content?: string | Array<{ text?: string }> };
   text?: string;
@@ -275,7 +299,7 @@ export function TryOnPanel({ product, onClose }: TryOnPanelProps) {
     setResultUrl(null);
   };
 
-  // Paso 2: Mandar — envía el recorte a la IA
+  // Paso 2: Mandar — envía el recorte de la cara + la imagen real del catálogo a la IA
   const handleSend = async () => {
     if (!cropPreview || !window.puter) {
       if (!window.puter) {
@@ -285,37 +309,36 @@ export function TryOnPanel({ product, onClose }: TryOnPanelProps) {
       return;
     }
 
-    // Extraer base64 del data-URI del preview
-    const [meta, base64] = cropPreview.split(",");
-    const mime = meta.match(/data:(.*?);/)?.[1] ?? "image/jpeg";
+    // Extraer base64 del data-URI del recorte del usuario
+    const [meta, base64User] = cropPreview.split(",");
+    const mimeUser = meta.match(/data:(.*?);/)?.[1] ?? "image/jpeg";
 
     setStatus("loading");
     setErrorMsg("");
     setResultUrl(null);
 
     try {
-      // Resuelve la descripción del producto: manual > ya generada > generada ahora por IA
-      let description = product!.prompt || autoDescription;
-      if (!description) {
-        setDescribing(true);
-        try {
-          description = await generatePromptFromImage(product!);
-          setAutoDescription(description);
-        } catch (descErr) {
-          console.error("No se pudo generar descripción automática:", descErr);
-          description = buildFallbackDescription(product!);
-        } finally {
-          setDescribing(false);
-        }
-      }
+      // Cargar la imagen del catálogo y convertirla a base64
+      const catalogImg = await loadImage(product!.img);
+      const { data: catalogBase64, mime: catalogMime } = imageToBase64(catalogImg, "image/jpeg", 0.9);
 
-      const prompt = buildEditPrompt(description);
+      const prompt =
+        "Use the first image as the person's face — keep their identity, skin tone, hairstyle, expression, head pose, lighting, and background completely unchanged. " +
+"Use the second image only as a reference for the eyewear itself: ignore any other face, model, hands, mannequin, or background present in the second image. " +
+"Place the exact frames from the second image naturally on the person's face from the first image, " +
+"resting on the bridge of the nose and covering the eyes, with the arms passing naturally over the ears. " +
+"Match the real shape, color, material, texture, and proportions of the frames exactly as shown in the second image — do not simplify, restyle, or invent details. " +
+"Scale the frames to fit the person's face naturally without distorting their original design. " +
+"If the lenses are tinted or dark in the second image, keep them tinted; if they are clear prescription lenses, keep them transparent. " +
+"Do not add logos, text, reflections, or accessories that are not present in the second image. " +
+"Do not generate a different person or alter any facial feature. " +
+"The output must be a single photorealistic image, same resolution and framing as the first image, showing the same person wearing the exact eyewear from the second image.";
 
-      // Image-to-image: usa la foto del usuario como base y le añade los lentes
+      // Image-to-image con dos imágenes: [cara, catálogo]
       const img = await window.puter.ai.txt2img(prompt, {
         model: "google/gemini-3.1-flash-image-preview",
-        input_image: base64,
-        input_image_mime_type: mime,
+        input_images: [base64User, catalogBase64],
+        input_image_mime_type: mimeUser,
       });
 
       if (img instanceof HTMLImageElement && img.src) {
