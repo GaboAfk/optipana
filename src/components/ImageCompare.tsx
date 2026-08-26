@@ -38,6 +38,12 @@ export function ImageCompare({
   const [position, setPosition] = useState(initialPosition);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+
+  // Detectar touch device después del mount para evitar hydration mismatch
+  useEffect(() => {
+    setIsTouchDevice("ontouchstart" in window);
+  }, []);
 
   // El scroll controla la posición cuando el usuario no está arrastrando
   const scrollPos = scrollPosition as MotionValue<number> | undefined;
@@ -60,18 +66,19 @@ export function ImageCompare({
 
   const onMouseDown = useCallback(
     (e: React.MouseEvent) => {
+      if (isTouchDevice) return;
       isDragging.current = true;
       updatePosition(e.clientX);
     },
-    [updatePosition],
+    [isTouchDevice, updatePosition],
   );
 
   const onTouchStart = useCallback(
-    (e: React.TouchEvent) => {
-      isDragging.current = true;
-      updatePosition(e.touches[0].clientX);
+    (_e: React.TouchEvent) => {
+      // En mobile no se arrastra — solo el scroll controla la barra
+      return;
     },
-    [updatePosition],
+    [],
   );
 
   useEffect(() => {
@@ -129,7 +136,7 @@ export function ImageCompare({
     <div
       ref={containerRef}
       className={`relative overflow-hidden ${className}`}
-      style={{ cursor: "ew-resize", touchAction: "none", userSelect: "none" }}
+      style={{ cursor: isTouchDevice ? "default" : "ew-resize", touchAction: "pan-y", userSelect: "none" }}
       onMouseDown={onMouseDown}
       onTouchStart={onTouchStart}
     >

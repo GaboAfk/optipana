@@ -14,6 +14,16 @@ const AUTO_ADVANCE_MS = 5000;
 export function VideoCarousel() {
   const [active, setActive] = useState(0);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detecta mobile para cambiar la disposición de los videos adyacentes
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   // Carga todos los videos desde el inicio
   useEffect(() => {
@@ -44,7 +54,7 @@ export function VideoCarousel() {
   }, []);
 
   return (
-    <div className="relative h-full w-full" style={{ perspective: "1000px" }}>
+    <div className="relative h-full w-full bg-transparent" style={{ perspective: isMobile ? "800px" : "1000px" }}>
       {REELS.map((src, i) => {
         const offset = i - active;
         const isLeft = offset === -1 || (active === 0 && i === REELS.length - 1);
@@ -60,12 +70,18 @@ export function VideoCarousel() {
           opacity = 1;
           zIndex = 10;
         } else if (isLeft) {
-          transform = "translateX(-60%) translateZ(-100px) scale(0.8) rotateY(15deg)";
-          opacity = 0.4;
+          // En mobile: arriba; en desktop: izquierda
+          transform = isMobile
+            ? "translateY(-45%) translateZ(-100px) scale(0.78) rotateX(15deg)"
+            : "translateX(-85%) translateZ(-150px) scale(0.75) rotateY(20deg)";
+          opacity = isMobile ? 0.4 : 0.3;
           zIndex = 5;
         } else if (isRight) {
-          transform = "translateX(60%) translateZ(-100px) scale(0.8) rotateY(-15deg)";
-          opacity = 0.4;
+          // En mobile: abajo; en desktop: derecha
+          transform = isMobile
+            ? "translateY(45%) translateZ(-100px) scale(0.78) rotateX(-15deg)"
+            : "translateX(85%) translateZ(-150px) scale(0.75) rotateY(-20deg)";
+          opacity = isMobile ? 0.4 : 0.3;
           zIndex = 5;
         } else {
           transform = "translateZ(-200px) scale(0.6)";
@@ -87,8 +103,9 @@ export function VideoCarousel() {
               transform,
               opacity,
               zIndex,
-              filter: isActive ? "blur(0)" : "blur(4px)",
+              filter: isActive ? "none" : "blur(4px)",
               backgroundColor: "transparent",
+              background: "transparent",
             }}
           />
         );

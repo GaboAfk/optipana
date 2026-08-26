@@ -200,15 +200,63 @@ export function Offers() {
   const countdown = useOfferCountdown();
   const mobileScrollRef = useRef<HTMLDivElement>(null);
 
-  // Scroll horizontal secuestrado del scroll vertical en mobile
+  // Scroll vertical del contenedor → progreso 0..1
   const { scrollYProgress } = useScroll({
     target: mobileScrollRef,
     offset: ["start start", "end end"],
   });
 
-  // 3 tarjetas de ~85vw cada una → necesitamos desplazar ~2 * 85vw = 170vw
-  // Convertimos el progreso del scroll vertical en translateX horizontal
+  // 3 tarjetas de ~85vw → desplazar ~2 * 85vw = 170vw → -66.7% del track
   const x = useTransform(scrollYProgress, [0, 1], ["0%", "-66.7%"]);
+
+  // Swipe horizontal manual → mueve el scroll vertical del contenedor
+  useEffect(() => {
+    const container = mobileScrollRef.current;
+    if (!container) return;
+
+    let touchStartX = 0;
+    let touchStartScroll = 0;
+    let isHorizontal = false;
+    let isVertical = false;
+
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartScroll = container.scrollTop;
+      isHorizontal = false;
+      isVertical = false;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      const dx = e.touches[0].clientX - touchStartX;
+      const maxV = container.scrollHeight - window.innerHeight;
+
+      // Determinar dirección en el primer movimiento
+      if (!isHorizontal && !isVertical) {
+        if (Math.abs(dx) > 10) {
+          isHorizontal = true;
+        } else {
+          isVertical = true;
+        }
+      }
+
+      if (isHorizontal) {
+        e.preventDefault();
+        // Swipe derecha → scroll arriba, swipe izquierda → scroll abajo
+        const deltaScroll = -(dx / window.innerWidth) * maxV * 0.5;
+        container.scrollTop = touchStartScroll + deltaScroll;
+      }
+    };
+
+    const sticky = container.firstElementChild as HTMLElement;
+    if (!sticky) return;
+
+    sticky.addEventListener("touchstart", onTouchStart, { passive: true });
+    sticky.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => {
+      sticky.removeEventListener("touchstart", onTouchStart);
+      sticky.removeEventListener("touchmove", onTouchMove);
+    };
+  }, []);
 
   const renderCard = (Component: (typeof CARDS)[number]["Component"]) => {
     if (Component === Card2x1) return <Card2x1 countdown={countdown} />;
@@ -226,10 +274,10 @@ export function Offers() {
           </span>
         </div>
 
-        {/* ── Mobile: scroll vertical → horizontal ────────────────────
-            Un contenedor alto (300vh) que se queda "pegado" (sticky)
-            mientras las tarjetas se desplazan horizontalmente.          */}
-        <div ref={mobileScrollRef} className="relative h-[300vh] md:hidden">
+        {/* ── Mobile: scroll vertical → horizontal + swipe horizontal ──
+            Contenedor alto que se queda "pegado" (sticky).
+            Transform CSS para performance, sin overflow-x-auto. */}
+        <div ref={mobileScrollRef} className="relative h-[250vh] md:hidden">
           <div className="sticky top-0 flex h-screen flex-col overflow-hidden">
             {/* Badge arriba en mobile */}
             <div className="pt-16 text-center">
@@ -239,18 +287,21 @@ export function Offers() {
               </span>
             </div>
 
-            {/* Tarjetas centradas en el espacio restante */}
+            {/* Track con transform CSS (sin overflow-x-auto) */}
             <div className="flex flex-1 items-center overflow-hidden">
-              <motion.div style={{ x }} className="flex gap-5 pl-4 pr-4">
-              {CARDS.map(({ bg, shadow, Component }, i) => (
-                <div
-                  key={i}
-                  className={`relative w-[85vw] max-w-sm shrink-0 overflow-hidden rounded-3xl ${bg} p-8 text-white shadow-xl ${shadow}`}
-                >
-                  {renderCard(Component)}
-                </div>
-              ))}
-            </motion.div>
+              <motion.div
+                style={{ x }}
+                className="flex gap-5 pl-4 pr-4 will-change-transform"
+              >
+                {CARDS.map(({ bg, shadow, Component }, i) => (
+                  <div
+                    key={i}
+                    className={`relative w-[85vw] max-w-sm shrink-0 overflow-hidden rounded-3xl ${bg} p-8 text-white shadow-xl ${shadow}`}
+                  >
+                    {renderCard(Component)}
+                  </div>
+                ))}
+              </motion.div>
             </div>
 
             {/* Indicador de progreso */}

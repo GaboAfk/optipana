@@ -13,7 +13,7 @@ export function Hero() {
       {/* Portal Field detrás de todo el hero — cubre texto e imagen */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <PortalFieldBackground
-          className="absolute left-1/2 top-1/2 aspect-square w-[250vw] -translate-x-1/2 -translate-y-1/2 sm:w-[100rem] lg:w-[120rem]"
+          className="absolute left-1/2 top-1/2 aspect-square w-[320vw] -translate-x-1/2 -translate-y-1/2 sm:w-[100rem] lg:w-[120rem]"
           opacity={0.55}
         />
       </div>
@@ -58,10 +58,13 @@ export function Hero() {
           </div>
 
           {/* Trust badges */}
-          <div className="flex flex-wrap gap-4 mt-10">
+          <div className="flex flex-wrap gap-4 mt-10 rounded-2xl px-4 py-2 backdrop-blur-sm">
             {["+500 modelos", "4 sucursales", "Examen visual incluido"].map((b) => (
-              <span key={b} className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500">
-                <svg className="w-4 h-4 text-[#FA5800]" fill="currentColor" viewBox="0 0 20 20">
+              <span
+                key={b}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-800 [text-shadow:0_1px_6px_rgba(255,255,255,0.95),0_0_18px_rgba(255,255,255,0.85),0_0_24px_rgba(255,255,255,0.5)]"
+              >
+                <svg className="w-4 h-4 text-[#FA5800] drop-shadow-[0_1px_6px_rgba(255,255,255,0.95),0_0_18px_rgba(255,255,255,0.85)]" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
                 {b}
@@ -71,9 +74,9 @@ export function Hero() {
         </div>
 
         {/* Columna visual */}
-        <div className="relative flex min-h-[520px] w-full flex-1 items-center justify-center py-10">
+        <div className="relative flex min-h-[520px] w-full flex-1 items-center justify-center  py-10">
           {/** sustituir por carrusel de videos de framer (pedir videos de 15s) https://framer.com/m/VideoCarousel-3ACghD.js@gN3OxtTWepzM2Kd4SUcE */}
-          <div className="relative z-10 aspect-[3/4] w-64 rounded-[2.5rem] shadow-2xl sm:w-80 lg:w-96">
+          <div className="relative z-10 aspect-[3/4] w-[85vw] max-w-sm rounded-[2.5rem] bg-transparent shadow-2xl sm:w-80 lg:w-96">
             {/* <Image
               src={`${UNS}/photo-1525786210598-d527194d3e9a?w=700&h=900&fit=crop&auto=format`}
               alt="Persona con armazones de OptiPana"
