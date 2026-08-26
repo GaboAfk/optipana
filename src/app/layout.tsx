@@ -33,6 +33,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${quicksand.variable} ${nunitoSans.variable} ${allura.variable}`}>
+      <head>
+        {/* Puter.js — acceso gratis a Nano Banana (Gemini) sin API keys */}
+        <script src="https://js.puter.com/v2/" async />
+      </head>
       <body className="flex min-h-full flex-col antialiased">{children}</body>
     </html>
   );

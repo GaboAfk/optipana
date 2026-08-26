@@ -24,6 +24,7 @@ export interface Product {
   frame: string; // color de la montura
   lens: string; // tinte del lente
   blob: "orange" | "purple";
+  prompt: string; // descripción detallada para try-on IA
 }
 
 export const CATEGORIES: { id: Category | "todos"; label: string }[] = [
@@ -64,6 +65,7 @@ export const products: Product[] = [
     frame: "#2B2B2B",
     lens: "#B9C9FF",
     blob: "orange",
+    prompt: "",
   },
   {
     id: 2,
@@ -77,6 +79,7 @@ export const products: Product[] = [
     frame: "#663399",
     lens: "#3B5BDB",
     blob: "purple",
+    prompt: "A pair of modern, round sunglasses with translucent frames and amber-tinted lenses rests on a textured, leather-like surface in the foreground, centered in the frame. The sunglasses are oriented horizontally, facing the viewer, casting a crisp, dark shadow onto the surface directly beneath them. In the background, a vast, calm body of water sparkles under bright, warm sunlight, with a hazy, soft-focus coastline visible on the horizon. The lighting is bright and summery, characterized by high-contrast golden-hour illumination that creates bokeh reflections on the water's surface. The overall atmosphere is peaceful and vacation-oriented, conveying a sense of leisure and travel. The composition utilizes a shallow depth of field, keeping the sunglasses in sharp focus while the marine backdrop dissolves into a soft, blurred expanse of blue and shimmering light. The aesthetic is clean, stylish, and reminiscent of travel photography.",
   },
   {
     id: 3,
@@ -90,6 +93,7 @@ export const products: Product[] = [
     frame: "#FA5800",
     lens: "#FFE9DC",
     blob: "purple",
+    prompt: "A close-up portrait of a young girl wearing chunky, translucent bubblegum pink eyeglasses. The frames are rounded-oval in shape, made of glossy pink acetate, with thick matching pink temples. The prescription lenses are clear with a slight visible thickness at the edges.",
   },
   {
     id: 4,
@@ -103,6 +107,7 @@ export const products: Product[] = [
     frame: "#8A5A2B",
     lens: "#EFE4D3",
     blob: "orange",
+    prompt: "",
   },
   {
     id: 5,
@@ -116,6 +121,7 @@ export const products: Product[] = [
     frame: "#2B2B2B",
     lens: "#7C4DFF",
     blob: "purple",
+    prompt: "",
   },
   {
     id: 6,
@@ -129,6 +135,7 @@ export const products: Product[] = [
     frame: "#E04F00",
     lens: "#8FD3FF",
     blob: "orange",
+    prompt: "",
   },
   {
     id: 7,
@@ -142,6 +149,7 @@ export const products: Product[] = [
     frame: "#663399",
     lens: "#F3EBF9",
     blob: "purple",
+    prompt: "",
   },
   {
     id: 8,
@@ -155,6 +163,7 @@ export const products: Product[] = [
     frame: "#FA5800",
     lens: "#37474F",
     blob: "orange",
+    prompt: "",
   },
   {
     id: 9,
@@ -168,6 +177,7 @@ export const products: Product[] = [
     frame: "#4C9A2A",
     lens: "#DCF5C7",
     blob: "purple",
+    prompt: "",
   },
   {
     id: 10,
@@ -181,5 +191,6 @@ export const products: Product[] = [
     frame: "#C9A86A",
     lens: "#D9E6FF",
     blob: "orange",
+    prompt: "",
   },
 ];
