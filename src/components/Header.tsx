@@ -8,6 +8,7 @@ import { SlidingTextButton } from "./SlidingTextButton";
 const NAV_LINKS = [
   { href: "#inicio", label: "Inicio" },
   { href: "#servicios", label: "Servicios" },
+  { href: "#jornadas", label: "Jornadas" },
   { href: "#catalogo", label: "Catálogo" },
   { href: "#nosotros", label: "Nosotros" },
   { href: "#testimonios", label: "Testimonios" },

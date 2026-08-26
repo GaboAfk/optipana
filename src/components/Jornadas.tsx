@@ -57,6 +57,23 @@ export function Jornadas() {
       id="jornadas"
       className="relative overflow-hidden bg-gradient-to-br from-brand-purple to-purple-900 py-16 text-white md:py-24"
     >
+      {/* Video de fondo — loop ping-pong (forward + reverse), WebM ligero */}
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        className="absolute left-1/2 top-1/2 h-[200%] w-[200%] max-h-none -translate-x-1/2 -translate-y-1/2 object-cover opacity-90 md:max-h-none md:max-w-none"
+        aria-hidden="true"
+      >
+        <source src="/jornadas-bg.webm" type="video/webm" />
+        <source src="/jornadas-loop.mp4" type="video/mp4" />
+      </video>
+
+      {/* Overlay para legibilidad */}
+      <div className="absolute inset-0 bg-gradient-to-br from-brand-purple/60 to-purple-900/60" />
+
       {/* Onda superior — transición desde Services (#f7f7f9) */}
       <div
         className="pointer-events-none absolute -top-px left-0 right-0 z-10 leading-none"
@@ -76,8 +93,8 @@ export function Jornadas() {
       </div>
 
       {/* Formas decorativas */}
-      <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 rounded-full bg-white/5 blur-xl" />
-      <div className="pointer-events-none absolute bottom-0 left-0 h-96 w-96 rounded-full bg-brand-orange/20 blur-2xl" />
+      <div className="pointer-events-none absolute right-0 top-0 z-[5] h-64 w-64 rounded-full bg-white/5 blur-xl" />
+      <div className="pointer-events-none absolute bottom-0 left-0 z-[5] h-96 w-96 rounded-full bg-brand-orange/20 blur-2xl" />
 
       <div className="relative z-10 mx-auto max-w-7xl space-y-12 px-5 text-center sm:px-8">
         {/* Encabezado */}
