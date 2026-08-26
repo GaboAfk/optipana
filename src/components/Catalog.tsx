@@ -1,20 +1,54 @@
 "use client";
 
-import { useState } from "react";
-import { CATEGORIES, CATEGORY_LABELS, products, type Category } from "@/data/products";
+import { useEffect, useRef, useState } from "react";
+import { CATEGORIES, CATEGORY_LABELS, GENDERS, products, type Category, type Gender } from "@/data/products";
 import { WaveDivider } from "./WaveDivider";
 import { WhatsAppIcon } from "./icons";
 import { waLink } from "@/lib/site";
-import { motion } from "framer-motion";
+import { motion, useScroll, useTransform } from "framer-motion";
 
 type FilterId = Category | "todos";
+type GenderFilterId = Gender | "todos";
 
 export function Catalog() {
   const [active, setActive] = useState<FilterId>("todos");
+  const [gender, setGender] = useState<GenderFilterId>("todos");
   const [showAll, setShowAll] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const titleRef = useRef<HTMLHeadingElement>(null);
 
-  const filtered = active === "todos" ? products : products.filter((p) => p.category === active);
-  const visible = showAll ? filtered : filtered.slice(0, 4);
+  const { scrollYProgress } = useScroll({
+    target: titleRef,
+    offset: ["start 85%", "end 20%"],
+  });
+
+  // "estilos" pasa de naranja a morado al hacer scroll
+  const estilosColor = useTransform(
+    scrollYProgress,
+    [0, 1],
+    ["#fa5800", "#663399"],
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  const filtered = products.filter((p) => {
+    const catMatch = active === "todos" || p.category === active;
+    const genderMatch =
+      gender === "todos" || p.gender === gender || p.gender === "unisex";
+    return catMatch && genderMatch;
+  });
+
+  const pageSize = isDesktop ? 8 : 4;
+  const visible = showAll ? filtered : filtered.slice(0, pageSize);
+  const remaining = filtered.length - pageSize;
+
+  const resetPaging = () => setShowAll(false);
 
   return (
     <section id="catalogo" className="relative overflow-hidden bg-white py-16 md:py-24">
@@ -25,16 +59,51 @@ export function Catalog() {
           <p className="inline-flex items-center gap-2 rounded-full bg-brand-orange-soft px-4 py-1.5 text-sm font-bold text-brand-orange">
             Catálogo
           </p>
-          <h2 className="mt-4 font-display text-3xl font-bold text-brand-ink sm:text-4xl md:text-5xl">
-            Armazones para todos los estilos
+          <h2
+            ref={titleRef}
+            className="mt-4 font-display text-3xl font-bold leading-[1.15] tracking-tight text-brand-ink sm:text-4xl md:text-5xl"
+          >
+            Monturas para todos los{" "}
+            <motion.span
+              style={{ color: estilosColor }}
+              className="font-[family-name:var(--font-allura)] text-4xl sm:text-5xl md:text-7xl"
+            >
+              estilos
+            </motion.span>
           </h2>
           <p className="mt-4 text-lg text-brand-ink/70">
             Ver bien nunca fue tan divertido. Precios en USD, cómodo financiamiento.
           </p>
         </div>
 
-        {/* Filtros */}
-        <div className="mt-10 flex flex-wrap justify-center gap-2.5" role="tablist" aria-label="Filtrar catálogo">
+        {/* Filtros de género (arriba) */}
+        <div className="mt-10 flex flex-wrap justify-center gap-2.5" role="tablist" aria-label="Filtrar por género">
+          {GENDERS.map((g) => {
+            const isActive = gender === g.id;
+            return (
+              <button
+                key={g.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => {
+                  setGender(g.id);
+                  resetPaging();
+                }}
+                className={`rounded-full px-5 py-2.5 text-sm font-bold transition-all ${
+                  isActive
+                    ? "bg-brand-purple text-white shadow-md shadow-brand-purple/30"
+                    : "bg-brand-bg text-brand-ink/70 hover:bg-brand-purple/10 hover:text-brand-purple"
+                }`}
+              >
+                {g.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Filtros de categoría (abajo) */}
+        <div className="mt-3 flex flex-wrap justify-center gap-2.5" role="tablist" aria-label="Filtrar por categoría">
           {CATEGORIES.map((cat) => {
             const isActive = active === cat.id;
             return (
@@ -45,7 +114,7 @@ export function Catalog() {
                 aria-selected={isActive}
                 onClick={() => {
                   setActive(cat.id);
-                  setShowAll(false);
+                  resetPaging();
                 }}
                 className={`rounded-full px-5 py-2.5 text-sm font-bold transition-all ${
                   isActive
@@ -72,15 +141,15 @@ export function Catalog() {
           </p>
         )}
 
-        {/* Botón cargar más — solo mobile cuando hay productos ocultos */}
-        {filtered.length > 4 && !showAll && (
-          <div className="mt-8 flex justify-center md:hidden">
+        {/* Botón cargar más — mobile y desktop cuando hay productos ocultos */}
+        {remaining > 0 && !showAll && (
+          <div className="mt-8 flex justify-center">
             <button
               type="button"
               onClick={() => setShowAll(true)}
               className="rounded-full bg-brand-orange px-8 py-3 text-sm font-bold text-white shadow-md shadow-brand-orange/30 transition-all hover:-translate-y-0.5 hover:bg-brand-orange-dark"
             >
-              Cargar más ({filtered.length - 4} restantes)
+              Cargar más ({remaining} restantes)
             </button>
           </div>
         )}

@@ -10,7 +10,7 @@ type ProductArtProps = {
   className?: string;
 };
 
-/** Arte SVG placeholder de cada producto: blob de marca + armazón. */
+/** Arte SVG placeholder de cada producto: blob de marca + montura. */
 export function ProductArt({ variant, frame, lens, blob, uid, className = "" }: ProductArtProps) {
   const blobId = `blob-${uid}`;
   const lensId = `lens-${uid}`;

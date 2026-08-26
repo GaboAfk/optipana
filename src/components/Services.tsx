@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 const SERVICES = [
   {
     icon: GlassesIcon,
-    title: "Armazones",
+    title: "Monturas",
     description: "Amplio catálogo para todos los estilos.",
     color: "orange",
   },
@@ -63,7 +63,7 @@ export function Services() {
             Todo para tu salud visual
           </h2>
           <p className="mt-4 text-lg text-brand-ink/70">
-            Encontrá el armazón que va contigo y cuidá tu visión con nosotros.
+            Encontrá la montura que va contigo y cuidá tu visión con nosotros.
           </p>
         </motion.div>
 

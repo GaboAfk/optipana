@@ -39,10 +39,32 @@ export function About() {
           <p className="inline-flex items-center gap-2 rounded-full bg-brand-purple-light px-4 py-1.5 text-sm font-bold text-brand-purple">
             Nosotros
           </p>
-          <h2 className="mt-4 font-display text-3xl font-bold text-brand-ink sm:text-4xl md:text-5xl">
+          <h2 className="relative mt-4 font-display text-3xl font-bold leading-[1.15] tracking-tight text-brand-ink sm:text-4xl md:text-5xl">
             Cuatro locales, una sola pasión:{" "}
-            <span className="bg-gradient-to-r from-brand-orange to-brand-purple bg-clip-text text-transparent">
-              que veas bien y te veas increíble
+            que veas{" "}
+            <span className="relative text-brand-orange">
+              bien
+              <svg
+                className="absolute -bottom-1 left-0 h-3 w-full text-brand-purple/40"
+                fill="none"
+                preserveAspectRatio="none"
+                viewBox="0 0 100 10"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path d="M0 5 Q 25 0 50 5 T 100 5" stroke="currentColor" strokeWidth="2" />
+              </svg>
+            </span>{" y te veas "}
+            <span className="relative font-[family-name:var(--font-allura)] text-4xl text-brand-purple sm:text-5xl md:text-6xl">
+              increíble
+              <svg
+                className="absolute bottom-0 left-0 h-3 w-full text-brand-orange/40 sm:bottom-2"
+                fill="none"
+                preserveAspectRatio="none"
+                viewBox="0 0 100 10"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path d="M0 5 Q 25 0 50 5 T 100 5" stroke="currentColor" strokeWidth="2" />
+              </svg>
             </span>
           </h2>
           <p className="mt-6 text-lg leading-relaxed text-brand-ink/70">
@@ -90,7 +112,7 @@ export function About() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/chica_optipana.jpg"
-              alt="Persona con armazones OptiPana"
+              alt="Persona con monturas OptiPana"
               className="h-full w-full object-cover"
             />
             {/* Chips flotantes */}

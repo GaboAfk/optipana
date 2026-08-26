@@ -1,4 +1,8 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Image from "next/image";
+import { motion, useScroll, useTransform } from "framer-motion";
 import { ArrowRightIcon } from "./icons";
 import { PortalFieldBackground } from "./PortalFieldBackground";
 import { SlidingTextButton } from "./SlidingTextButton";
@@ -7,7 +11,43 @@ import { WaveDivider } from "./WaveDivider";
 
 const UNS = "https://images.unsplash.com";
 
+/** Interpola linealmente entre dos colores hex. */
+function interpolateColor(from: string, to: string, t: number): string {
+  const parse = (hex: string) => {
+    const h = hex.replace("#", "");
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  };
+  const [r1, g1, b1] = parse(from);
+  const [r2, g2, b2] = parse(to);
+  const r = Math.round(r1 + (r2 - r1) * t);
+  const g = Math.round(g1 + (g2 - g1) * t);
+  const b = Math.round(b1 + (b2 - b1) * t);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 export function Hero() {
+  // Transición basada en pixeles de scroll del window.
+  // Mobile: 0→120px (más rápido). Desktop: 0→200px.
+  const { scrollY } = useScroll();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  const estiloColor = useTransform(
+    scrollY,
+    (latest) => {
+      const max = isMobile ? 120 : 200;
+      const t = Math.min(1, Math.max(0, latest / max));
+      return interpolateColor("#663399", "#fa5800", t);
+    },
+  );
+
   return (
     <section id="inicio" className="relative overflow-hidden bg-white pt-16 md:pt-16">
       {/* Portal Field detrás de todo el hero — cubre texto e imagen */}
@@ -26,11 +66,12 @@ export function Hero() {
             <span className="px-2 py-0.5 text-brand-orange">
               color
             </span>{" y "}
-            <span
-              className="px-2 py-0.5 font-[family-name:var(--font-allura)] text-5xl text-brand-purple sm:text-5xl md:text-7xl"
+            <motion.span
+              style={{ color: estiloColor }}
+              className="px-2 py-0.5 font-[family-name:var(--font-allura)] text-5xl sm:text-5xl md:text-7xl"
             >
               estilo
-            </span>
+            </motion.span>
             <svg
               className="absolute -bottom-2 left-1/2 h-3 w-3/4 -translate-x-1/2 text-brand-orange/40 md:left-0 md:translate-x-0"
               fill="none"
@@ -79,7 +120,7 @@ export function Hero() {
           <div className="relative z-10 aspect-[3/4] w-[85vw] max-w-sm rounded-[2.5rem] bg-transparent shadow-2xl sm:w-80 lg:w-96">
             {/* <Image
               src={`${UNS}/photo-1525786210598-d527194d3e9a?w=700&h=900&fit=crop&auto=format`}
-              alt="Persona con armazones de OptiPana"
+              alt="Persona con monturas de OptiPana"
               fill
               priority
               sizes="(max-width: 768px) 90vw, 25rem"

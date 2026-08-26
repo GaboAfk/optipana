@@ -23,7 +23,7 @@ export function Footer() {
           <div>
             <Logo light />
             <p className="mt-5 max-w-xs text-[15px] leading-relaxed text-white/70">
-              Óptica en Los Teques, Carrizal y San Antonio de los Altos. Armazones, lentes de
+              Óptica en Los Teques, Carrizal y San Antonio de los Altos. Monturas, lentes de
               contacto y examen visual en un solo lugar.
             </p>
             <div className="mt-6 flex gap-3">

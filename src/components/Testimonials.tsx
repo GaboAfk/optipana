@@ -11,7 +11,7 @@ const TESTIMONIALS = [
     location: "C.C. La Colina",
     color: "orange",
     comment:
-      "Excelente atención, encontré los armazones perfectos para mi cara. Los precios son muy accesibles y el examen visual fue muy profesional.",
+      "Excelente atención, encontré las monturas perfectas para mi cara. Los precios son muy accesibles y el examen visual fue muy profesional.",
   },
   {
     name: "Carlos R.",

@@ -23,7 +23,7 @@ const allura = Allura({
 export const metadata: Metadata = {
   title: "OptiPana — Tu mirada, con estilo y color",
   description:
-    "Óptica en Los Teques, Carrizal y San Antonio de los Altos. Armazones, lentes de contacto y examen visual en un solo lugar.",
+    "Óptica en Los Teques, Carrizal y San Antonio de los Altos. Monturas, lentes de contacto y examen visual en un solo lugar.",
 };
 
 export default function RootLayout({
