@@ -11,6 +11,15 @@ type TryOnPanelProps = {
 
 type Status = "idle" | "loading" | "done" | "error";
 
+const MODELS = [
+  { id: "google/gemini-2.5-flash-image", label: "Gemini 2.5 Flash Image" },
+  { id: "google/gemini-3.1-flash-image-preview", label: "Nano Banana 2" },
+  { id: "gemini-3-pro-image-preview", label: "Nano Banana Pro" },
+  { id: "gpt-image-2", label: "GPT Image 2" },
+];
+
+type ModelId = (typeof MODELS)[number]["id"];
+
 // Declara puter en el window global
 declare global {
   interface Window {
@@ -138,6 +147,7 @@ export function TryOnPanel({ product, onClose }: TryOnPanelProps) {
   // Descripción del producto generada automáticamente por IA (cuando no hay product.prompt)
   const [autoDescription, setAutoDescription] = useState<string | null>(null);
   const [describing, setDescribing] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<ModelId>("google/gemini-2.5-flash-image");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cropRef = useRef<HTMLDivElement>(null);
 
@@ -336,7 +346,7 @@ export function TryOnPanel({ product, onClose }: TryOnPanelProps) {
 
       // Image-to-image con dos imágenes: [cara, catálogo]
       const img = await window.puter.ai.txt2img(prompt, {
-        model: "google/gemini-3.1-flash-image-preview",
+        model: selectedModel,
         input_images: [base64User, catalogBase64],
         input_image_mime_type: mimeUser,
       });
@@ -613,10 +623,33 @@ export function TryOnPanel({ product, onClose }: TryOnPanelProps) {
           )}
 
           {/* Nota de privacidad */}
-          <p className="mt-8 text-xs text-brand-ink/40">
+          <p className="mt-4 text-xs text-brand-ink/40">
             Tu foto se procesa mediante IA en la nube. No la almacenamos. Necesitarás iniciar sesión
             en Puter la primera vez que uses esta función.
           </p>
+
+          {/* Selector de modelo */}
+          <div className="mt-6 space-y-2">
+            <p className="text-xs font-bold uppercase tracking-wide text-brand-ink/40">
+              Modelo de IA
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {MODELS.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setSelectedModel(m.id)}
+                  className={`rounded-xl px-3 py-2.5 text-xs font-bold transition-all text-left ${
+                    selectedModel === m.id
+                      ? "bg-brand-orange text-white shadow-md shadow-brand-orange/30"
+                      : "bg-brand-bg text-brand-ink/70 hover:bg-brand-ink/5"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </aside>
     </>
