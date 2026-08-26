@@ -21,13 +21,13 @@ export function BeforeAfter() {
     <section className="relative bg-[#F7F7F9]">
       {/* Contenedor alto que crea el espacio de scroll para el sticky */}
       <div ref={stickyRef} className="relative h-[200vh]">
-        <div className="sticky top-0 flex h-screen flex-col items-center justify-center overflow-hidden px-5 sm:px-8">
+        <div className="sticky top-5 flex h-screen flex-col items-center justify-center overflow-hidden px-5 sm:top-0 sm:px-8">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: false, amount: 0.3 }}
             transition={{ type: "spring" as const, stiffness: 80, damping: 16 }}
-            className="mx-auto w-full max-w-4xl"
+            className="mx-auto w-full px-2 sm:max-w-4xl sm:px-0"
           >
             {/* Encabezado */}
             <div className="mb-6 text-center">
@@ -53,7 +53,7 @@ export function BeforeAfter() {
                 afterLabel="Con lentes"
                 sliderColor="#FA5800"
                 scrollPosition={sliderPosition}
-                className="aspect-[3/2] w-full"
+                className="aspect-[4/5] w-full sm:aspect-[3/2] sm:max-w-4xl"
               />
             </div>
 
