@@ -11,8 +11,10 @@ type FilterId = Category | "todos";
 
 export function Catalog() {
   const [active, setActive] = useState<FilterId>("todos");
+  const [showAll, setShowAll] = useState(false);
 
-  const visible = active === "todos" ? products : products.filter((p) => p.category === active);
+  const filtered = active === "todos" ? products : products.filter((p) => p.category === active);
+  const visible = showAll ? filtered : filtered.slice(0, 4);
 
   return (
     <section id="catalogo" className="relative overflow-hidden bg-white py-16 md:py-24">
@@ -41,7 +43,10 @@ export function Catalog() {
                 type="button"
                 role="tab"
                 aria-selected={isActive}
-                onClick={() => setActive(cat.id)}
+                onClick={() => {
+                  setActive(cat.id);
+                  setShowAll(false);
+                }}
                 className={`rounded-full px-5 py-2.5 text-sm font-bold transition-all ${
                   isActive
                     ? "bg-brand-orange text-white shadow-md shadow-brand-orange/30"
@@ -65,6 +70,19 @@ export function Catalog() {
           <p className="mt-12 text-center font-semibold text-brand-ink/60">
             No hay productos en esta categoría por ahora. ¡Escríbenos y te ayudamos a encontrarlo!
           </p>
+        )}
+
+        {/* Botón cargar más — solo mobile cuando hay productos ocultos */}
+        {filtered.length > 4 && !showAll && (
+          <div className="mt-8 flex justify-center md:hidden">
+            <button
+              type="button"
+              onClick={() => setShowAll(true)}
+              className="rounded-full bg-brand-orange px-8 py-3 text-sm font-bold text-white shadow-md shadow-brand-orange/30 transition-all hover:-translate-y-0.5 hover:bg-brand-orange-dark"
+            >
+              Cargar más ({filtered.length - 4} restantes)
+            </button>
+          </div>
         )}
       </div>
       <WaveDivider fill="#F7F7F9" />

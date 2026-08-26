@@ -96,7 +96,7 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 flex items-center justify-between border-t border-white/10 pt-6 text-sm font-semibold text-white/50">
+        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-6 text-sm font-semibold text-white/50 md:flex-row md:items-center">
           <p>© {year} Optipana. | Todos los derechos reservados.</p>
           <p className="flex items-center gap-1">
             Desarrollo por{" "}
@@ -117,7 +117,8 @@ export function Footer() {
               <img
                 src="/imgi_80_icono aponrroy sin fondo.png"
                 alt="Aponrroy"
-                style={{ height: "80px", marginLeft: "5px", verticalAlign: "middle" }}
+                style={{ height: "50px", marginLeft: "5px", verticalAlign: "middle" }}
+                className="md:!h-[80px]"
               />
             </a>
           </p>
