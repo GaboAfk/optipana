@@ -2,6 +2,7 @@
 
 import { StarIcon } from "./icons";
 import { WaveDivider } from "./WaveDivider";
+import { OrbitTestimonials } from "./OrbitTestimonials";
 import { motion } from "framer-motion";
 
 const TESTIMONIALS = [
@@ -28,6 +29,54 @@ const TESTIMONIALS = [
     color: "purple",
     comment:
       "Me ayudaron a elegir mis primeros lentes de contacto. Me explicaron todo con paciencia. ¡Totalmente recomendados!",
+  },
+  {
+    name: "Pedro A.",
+    initial: "P",
+    location: "C.C. La Colina",
+    color: "orange",
+    comment:
+      "El financiamiento en cuotas me ayudó muchísimo. Salí con mis lentes nuevos el mismo día.",
+  },
+  {
+    name: "Andreína S.",
+    initial: "A",
+    location: "Carrizal",
+    color: "purple",
+    comment:
+      "Fui a una jornada de salud visual y quedé encantada. Examen gratis y atención de primera.",
+  },
+  {
+    name: "José T.",
+    initial: "J",
+    location: "C.C. Tibisay",
+    color: "orange",
+    comment:
+      "El catálogo es enorme, encontré justo el estilo que buscaba para mis lentes de sol.",
+  },
+  {
+    name: "Genesis R.",
+    initial: "G",
+    location: "C.C. La Colina",
+    color: "purple",
+    comment:
+      "Muy buena calidad en los cristales. Se nota la diferencia con los que tenía antes.",
+  },
+  {
+    name: "Miguel D.",
+    initial: "M",
+    location: "Carrizal",
+    color: "orange",
+    comment:
+      "El personal me asesoró súper bien para elegir la montura ideal según mi rostro.",
+  },
+  {
+    name: "Valentina P.",
+    initial: "V",
+    location: "C.C. Tibisay",
+    color: "purple",
+    comment:
+      "Rapidez y buen precio. Ya es mi óptica de confianza para toda la familia.",
   },
 ] as const;
 
@@ -57,15 +106,16 @@ export function Testimonials() {
           </p>
         </motion.div>
 
-        {/* Grid / carrusel en mobile */}
-        <div className="mt-12 flex snap-x snap-mandatory gap-6 overflow-x-auto pb-4 will-change-transform lg:grid lg:grid-cols-3 lg:overflow-visible lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Esfera orbital 3D — solo desktop */}
+        <div className="mt-12 hidden lg:block">
+          <OrbitTestimonials testimonials={TESTIMONIALS} />
+        </div>
+
+        {/* Carrusel horizontal — mobile / tablet */}
+        <div className="mt-12 flex snap-x snap-mandatory gap-6 overflow-x-auto pb-4 will-change-transform lg:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {TESTIMONIALS.map((t, i) => (
-            <motion.article
+            <article
               key={t.name}
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: false, amount: 0.2 }}
-              transition={{ delay: i * 0.15, type: "spring" as const, stiffness: 80, damping: 16 }}
               className="flex w-[85%] shrink-0 snap-center flex-col rounded-3xl bg-white p-7 shadow-md shadow-brand-purple/10 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl sm:w-[70%] lg:w-auto"
             >
               <div className="flex items-center gap-1 text-brand-orange">
@@ -89,7 +139,7 @@ export function Testimonials() {
                   <p className="text-sm font-semibold text-brand-ink/50">Atendido en {t.location}</p>
                 </div>
               </footer>
-            </motion.article>
+            </article>
           ))}
         </div>
       </div>

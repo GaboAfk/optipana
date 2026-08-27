@@ -28,3 +28,32 @@ body {
 ::selection {
   @apply bg-brand-orange text-white;
 }
+
+@keyframes orbit-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.orbit-float {
+  animation: orbit-float 4s ease-in-out infinite;
+}
+
+@keyframes orbit-spotlight-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.orbit-spotlight-in {
+  animation: orbit-spotlight-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
