@@ -25,7 +25,7 @@ export function BeforeAfter() {
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false, amount: 0.3 }}
+            viewport={{ once: true, amount: 0.3 }}
             transition={{ type: "spring" as const, stiffness: 80, damping: 16 }}
             className="mx-auto w-full px-2 sm:max-w-4xl sm:px-0"
           >
