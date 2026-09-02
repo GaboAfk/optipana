@@ -1,9 +1,8 @@
-// TODO: reemplazar placeholders con los datos reales antes de publicar.
 export const SITE = {
-  whatsapp: "https://wa.me/58XXXXXXXXXX", // placeholder — confirmar número
-  whatsappDisplay: "+58 XXX-XXXXXXX",
-  email: "hola@optipana.com", // placeholder
-  phone: "+58 XXX-XXXXXXX", // placeholder
+  whatsapp: "https://wa.me/584120194396",
+  whatsappDisplay: "+58 412-0194396",
+  email: "optipanaredes@gmail.com",
+  phone: "+58 412-0194396",
   instagram: "https://instagram.com/optipana", // placeholder
   facebook: "https://facebook.com/optipana", // placeholder
   hours: "Lun – Sáb · 9:00 am – 6:00 pm",
