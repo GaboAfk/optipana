@@ -57,13 +57,17 @@ export function Locations() {
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
-                <a
-                  href={location.mapsUrl}
-                  className="inline-flex items-center gap-2 rounded-full bg-brand-purple px-5 py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-brand-purple-dark"
-                >
-                  <NavigationIcon className="h-4 w-4" />
-                  Cómo llegar
-                </a>
+                {location.mapsUrl !== "#" && (
+                  <a
+                    href={location.mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full bg-brand-purple px-5 py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-brand-purple-dark"
+                  >
+                    <NavigationIcon className="h-4 w-4" />
+                    Cómo llegar
+                  </a>
+                )}
                 <a
                   href={waLink(`Hola OptiPana, quiero información sobre el local ${location.name}.`)}
                   target="_blank"
