@@ -317,6 +317,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
   // --- Pan (mouse + touch) ---
   const onPointerDown = (e: React.PointerEvent) => {
     if (!imgEl) return;
+    e.preventDefault(); // Prevenir scroll cuando se interactúa con la imagen
     dragRef.current = {
       startX: e.clientX,
       startY: e.clientY,
@@ -328,6 +329,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
 
   const onPointerMove = (e: React.PointerEvent) => {
     if (!dragRef.current || !imgEl) return;
+    e.preventDefault(); // Prevenir scroll cuando se arrastra la imagen
     const dx = e.clientX - dragRef.current.startX;
     const dy = e.clientY - dragRef.current.startY;
     
@@ -497,25 +499,42 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
 
       {/* Panel lateral derecho */}
       <aside
-        className="fixed right-0 top-0 z-[70] flex h-full w-full max-w-4xl bg-white shadow-2xl"
+        className="fixed right-0 top-0 z-[70] flex h-full w-full max-w-4xl bg-white shadow-2xl flex-col md:flex-row"
         role="dialog"
         aria-label="Probador virtual"
       >
-        {/* Columna izquierda - Lista de productos */}
-        <div className="w-64 border-r border-brand-ink/10 flex flex-col bg-brand-bg/50">
-          {/* Lista de productos */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <h4 className="text-xs font-bold uppercase tracking-wide text-brand-ink/40 mb-3">
+        {/* Lista de productos - Mobile (arriba) / Desktop (izquierda) */}
+        <div className="md:w-64 border-b md:border-b-0 md:border-r border-brand-ink/ flex flex-col bg-brand-bg/50 flex-shrink-0 h-auto md:h-full">
+          {/* Header de lista - solo en mobile */}
+          <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-brand-ink/10 flex-shrink-0">
+            <h4 className="text-xs font-bold uppercase tracking-wide text-brand-ink/40">
+              Cambiar lente
+            </h4>
+            {!showAdditionalProducts && additionalProducts.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowAdditionalProducts(true)}
+                className="text-[10px] font-bold text-brand-orange hover:text-brand-orange-dark"
+              >
+                Probar más
+              </button>
+            )}
+          </div>
+
+          {/* Lista horizontal en mobile, vertical en desktop */}
+          <div className={`p-4 ${!showAdditionalProducts && additionalProducts.length > 0 ? 'md:pb-16' : ''} flex-shrink-0 md:flex-1 md:overflow-y-auto`}>
+            {/* Título solo en desktop */}
+            <h4 className="hidden md:block text-xs font-bold uppercase tracking-wide text-brand-ink/40 mb-3">
               Cambiar lente
             </h4>
             
-            <div className="flex flex-col gap-3">
+            <div className={`flex gap-3 ${!showAdditionalProducts && additionalProducts.length > 0 ? 'md:flex-col md:gap-3' : 'md:flex-col md:gap-3'} overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 scrollbar-hide`}>
               {displayProducts.map((p) => (
                 <button
                   key={p.id}
                   type="button"
                   onClick={() => onProductChange(p)}
-                  className={`flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
+                  className={`flex-shrink-0 flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
                     p.id === product.id
                       ? "bg-white ring-2 ring-brand-orange shadow-sm"
                       : "bg-white hover:bg-brand-ink/5"
@@ -525,7 +544,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
                   <img
                     src={p.img}
                     alt={p.name}
-                    className="h-16 w-16 rounded-lg object-cover flex-shrink-0"
+                    className="h-12 w-12 md:h-16 md:w-16 rounded-lg object-cover flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-brand-ink line-clamp-1">{p.name}</p>
@@ -536,12 +555,12 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
               ))}
             </div>
 
-            {/* Botón "Probar más" al final */}
+            {/* Botón "Probar más" - solo en desktop */}
             {!showAdditionalProducts && additionalProducts.length > 0 && (
               <button
                 type="button"
                 onClick={() => setShowAdditionalProducts(true)}
-                className="mt-4 w-full rounded-xl bg-brand-orange-soft px-4 py-3 text-xs font-bold text-brand-orange transition-all hover:bg-brand-orange hover:text-white"
+                className="hidden md:block mt-4 w-full rounded-xl bg-brand-orange-soft px-4 py-3 text-xs font-bold text-brand-orange transition-all hover:bg-brand-orange hover:text-white"
               >
                 Probar más ({additionalProducts.length} disponibles)
               </button>
@@ -550,7 +569,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
         </div>
 
         {/* Columna derecha - Contenido principal */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto md:overflow-auto">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-brand-ink/10 px-5 py-4">
             <div className="flex items-center gap-3">
@@ -620,7 +639,6 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
                   onPointerCancel={onPointerUp}
                   onWheel={onWheel}
                   className="relative mx-auto aspect-square w-full max-w-[320px] cursor-grab touch-none select-none overflow-hidden rounded-2xl bg-brand-bg ring-1 ring-brand-ink/10 active:cursor-grabbing"
-                  style={{ touchAction: "none" }}
                 >
                   {imgEl && (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -695,14 +713,14 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="shrink-0 rounded-full bg-brand-bg px-4 py-2 text-xs font-bold text-brand-ink/70 transition-colors hover:bg-brand-ink/10"
+                      className="shrink-0 rounded-full bg-brand-bg px-3 py-2 text-xs font-bold text-brand-ink/70 transition-colors hover:bg-brand-ink/10 md:px-4"
                     >
                       Cambiar foto
                     </button>
                     <button
                       type="button"
                       onClick={handleClearImage}
-                      className="shrink-0 rounded-full bg-red-50 px-4 py-2 text-xs font-bold text-red-600 transition-colors hover:bg-red-100"
+                      className="shrink-0 rounded-full bg-red-50 px-3 py-2 text-xs font-bold text-red-600 transition-colors hover:bg-red-100 md:px-4"
                     >
                       Limpiar
                     </button>
