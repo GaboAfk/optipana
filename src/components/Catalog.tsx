@@ -133,7 +133,11 @@ export function Catalog() {
         {/* Grid de productos */}
         <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {visible.map((product) => (
-            <ProductCard key={product.id} product={product} onTryOn={() => setTryOnProduct(product)} />
+            <ProductCard 
+              key={product.id} 
+              product={product} 
+              onTryOn={product["try-on"] ? () => setTryOnProduct(product) : undefined} 
+            />
           ))}
         </div>
 
@@ -157,12 +161,18 @@ export function Catalog() {
         )}
       </div>
       <WaveDivider fill="#F7F7F9" />
-      <TryOnPanel product={tryOnProduct} onClose={() => setTryOnProduct(null)} />
+      <TryOnPanel 
+        product={tryOnProduct} 
+        onClose={() => setTryOnProduct(null)} 
+        onProductChange={setTryOnProduct}
+        activeCategory={active}
+        activeGender={gender}
+      />
     </section>
   );
 }
 
-function ProductCard({ product, onTryOn }: { product: (typeof products)[number]; onTryOn: () => void }) {
+function ProductCard({ product, onTryOn }: { product: (typeof products)[number]; onTryOn?: () => void }) {
   const waMessage = `Hola OptiPana, me interesa el producto "${product.name}" (${product.brand}) — $${product.price} USD.`;
 
   return (
@@ -198,17 +208,19 @@ function ProductCard({ product, onTryOn }: { product: (typeof products)[number];
         <div className="mt-4 flex items-end justify-between gap-3 border-t border-brand-ink/5 pt-4">
           <p className="font-display text-2xl font-bold text-brand-orange">${product.price}</p>
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onTryOn}
-              className="inline-flex items-center gap-1.5 rounded-full bg-brand-orange-soft px-3 py-2.5 text-xs font-bold text-brand-orange transition-all hover:-translate-y-0.5 hover:bg-brand-orange hover:text-white"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
-                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-              Probar
-            </button>
+            {onTryOn && (
+              <button
+                type="button"
+                onClick={onTryOn}
+                className="inline-flex items-center gap-1.5 rounded-full bg-brand-orange-soft px-3 py-2.5 text-xs font-bold text-brand-orange transition-all hover:-translate-y-0.5 hover:bg-brand-orange hover:text-white"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                Probar
+              </button>
+            )}
             <a
               href={waLink(waMessage)}
               target="_blank"

@@ -28,3 +28,12 @@ body {
 ::selection {
   @apply bg-brand-orange text-white;
 }
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

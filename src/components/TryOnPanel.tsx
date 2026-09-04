@@ -1,12 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Product } from "@/data/products";
+import { products, type Category, type Gender, type Product } from "@/data/products";
 import { CloseIcon } from "./icons";
 
 type TryOnPanelProps = {
   product: Product | null;
   onClose: () => void;
+  onProductChange: (product: Product) => void;
+  activeCategory: Category | "todos";
+  activeGender: Gender | "todos";
 };
 
 type Status = "idle" | "loading" | "done" | "error";
@@ -137,7 +140,31 @@ function buildFallbackDescription(product: Product): string {
 
 const CROP_SIZE = 320; // tamaño del área de recorte en px
 
-export function TryOnPanel({ product, onClose }: TryOnPanelProps) {
+// Clave para localStorage
+const STORAGE_KEY = "optipana-tryon-image";
+
+export function TryOnPanel({ product, onClose, onProductChange, activeCategory, activeGender }: TryOnPanelProps) {
+  const [showAdditionalProducts, setShowAdditionalProducts] = useState(false);
+  
+  // Filtrar productos según los filtros activos y disponibilidad de try-on
+  const filteredProducts = products.filter((p) => {
+    const catMatch = activeCategory === "todos" || p.category === activeCategory;
+    const genderMatch = activeGender === "todos" || p.gender === activeGender || p.gender === "unisex";
+    const hasTryOn = p["try-on"];
+    return catMatch && genderMatch && hasTryOn;
+  });
+  
+  // Productos adicionales que no están en los filtrados
+  const additionalProducts = products.filter((p) => {
+    const hasTryOn = p["try-on"];
+    const isAlreadyShown = filteredProducts.some((fp) => fp.id === p.id);
+    return hasTryOn && !isAlreadyShown;
+  });
+  
+  // Productos a mostrar (filtrados + adicionales si se activó el botón)
+  const displayProducts = showAdditionalProducts 
+    ? [...filteredProducts, ...additionalProducts]
+    : filteredProducts;
   const [imgEl, setImgEl] = useState<HTMLImageElement | null>(null);
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
@@ -156,19 +183,56 @@ export function TryOnPanel({ product, onClose }: TryOnPanelProps) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
 
-  // Limpia el estado cuando se cierra o cambia el producto
+  // Cargar imagen guardada al montar el componente
   useEffect(() => {
-    setImgEl(null);
-    setImgUrl(null);
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const { dataUrl, savedScale, savedOffset } = JSON.parse(saved);
+        if (dataUrl) {
+          setImgUrl(dataUrl);
+          setScale(savedScale || 1);
+          setOffset(savedOffset || { x: 0, y: 0 });
+          
+          const img = new Image();
+          img.onload = () => setImgEl(img);
+          img.src = dataUrl;
+        }
+      }
+    } catch (e) {
+      console.error("Error loading saved image:", e);
+    }
+  }, []);
+
+  // Limpia el estado cuando se cierra o cambia el producto (excepto la imagen)
+  useEffect(() => {
     setStatus("idle");
     setResultUrl(null);
     setErrorMsg("");
     setCropPreview(null);
     setAutoDescription(null);
     setDescribing(false);
-    setScale(1);
-    setOffset({ x: 0, y: 0 });
+    setShowAdditionalProducts(false);
   }, [product]);
+
+  // Guardar estado de zoom y offset cuando cambian (con debounce)
+  useEffect(() => {
+    if (!imgUrl) return;
+    
+    const timeoutId = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          dataUrl: imgUrl,
+          savedScale: scale,
+          savedOffset: offset
+        }));
+      } catch (e) {
+        console.error("Error saving zoom state:", e);
+      }
+    }, 500); // 500ms de debounce
+    
+    return () => clearTimeout(timeoutId);
+  }, [scale, offset, imgUrl]);
 
   // Bloquea el scroll del body cuando el panel está abierto
   useEffect(() => {
@@ -193,6 +257,12 @@ export function TryOnPanel({ product, onClose }: TryOnPanelProps) {
     setOffset({ x: 0, y: 0 });
   }, [imgEl]);
 
+  // Calcular el scale mínimo para que la imagen siempre cubra el área de recorte
+  const minScale = imgEl ? Math.max(
+    CROP_SIZE / imgEl.naturalWidth,
+    CROP_SIZE / imgEl.naturalHeight
+  ) : 0.2;
+
   // Limpia URLs temporales
   useEffect(() => {
     return () => {
@@ -210,10 +280,38 @@ export function TryOnPanel({ product, onClose }: TryOnPanelProps) {
     setStatus("idle");
     setResultUrl(null);
     setErrorMsg("");
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
 
     const img = new Image();
-    img.onload = () => setImgEl(img);
+    img.onload = () => {
+      setImgEl(img);
+      // Guardar en localStorage
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          dataUrl: url,
+          savedScale: 1,
+          savedOffset: { x: 0, y: 0 }
+        }));
+      } catch (e) {
+        console.error("Error saving image to localStorage:", e);
+      }
+    };
     img.src = url;
+  };
+
+  // Limpiar la imagen guardada
+  const handleClearImage = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    if (imgUrl) URL.revokeObjectURL(imgUrl);
+    setImgUrl(null);
+    setImgEl(null);
+    setStatus("idle");
+    setResultUrl(null);
+    setErrorMsg("");
+    setCropPreview(null);
+    setScale(1);
+    setOffset({ x: 0, y: 0 });
   };
 
   // --- Pan (mouse + touch) ---
@@ -229,12 +327,26 @@ export function TryOnPanel({ product, onClose }: TryOnPanelProps) {
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragRef.current) return;
+    if (!dragRef.current || !imgEl) return;
     const dx = e.clientX - dragRef.current.startX;
     const dy = e.clientY - dragRef.current.startY;
+    
+    // Calcular límites del offset para que la imagen no se salga del área de recorte
+    const imgWidth = imgEl.naturalWidth * scale;
+    const imgHeight = imgEl.naturalHeight * scale;
+    const maxOffsetX = Math.max(0, (imgWidth - CROP_SIZE) / 2);
+    const maxOffsetY = Math.max(0, (imgHeight - CROP_SIZE) / 2);
+    
+    let newX = dragRef.current.baseX + dx;
+    let newY = dragRef.current.baseY + dy;
+    
+    // Restringir el offset dentro de los límites
+    newX = Math.max(-maxOffsetX, Math.min(maxOffsetX, newX));
+    newY = Math.max(-maxOffsetY, Math.min(maxOffsetY, newY));
+    
     setOffset({
-      x: dragRef.current.baseX + dx,
-      y: dragRef.current.baseY + dy,
+      x: newX,
+      y: newY,
     });
   };
 
@@ -249,7 +361,13 @@ export function TryOnPanel({ product, onClose }: TryOnPanelProps) {
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    setScale((s) => Math.max(0.2, Math.min(5, s * delta)));
+    const newScale = Math.max(minScale, Math.min(5, scale * delta));
+    setScale(newScale);
+    
+    // Al hacer zoom, recentrar la imagen para asegurar que siempre cubra el área
+    if (newScale === minScale) {
+      setOffset({ x: 0, y: 0 });
+    }
   };
 
   // --- Recorta la imagen visible del área de crop y devuelve base64 ---
@@ -379,36 +497,86 @@ export function TryOnPanel({ product, onClose }: TryOnPanelProps) {
 
       {/* Panel lateral derecho */}
       <aside
-        className="fixed right-0 top-0 z-[70] flex h-full w-full max-w-md flex-col bg-white shadow-2xl"
+        className="fixed right-0 top-0 z-[70] flex h-full w-full max-w-4xl bg-white shadow-2xl"
         role="dialog"
         aria-label="Probador virtual"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-brand-ink/10 px-5 py-4">
-          <div className="flex items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={product.img}
-              alt={product.name}
-              className="h-12 w-12 rounded-xl object-cover"
-            />
-            <div>
-              <p className="font-display text-sm font-bold text-brand-ink">{product.name}</p>
-              <p className="text-xs text-brand-ink/50">{product.brand}</p>
+        {/* Columna izquierda - Lista de productos */}
+        <div className="w-64 border-r border-brand-ink/10 flex flex-col bg-brand-bg/50">
+          {/* Lista de productos */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <h4 className="text-xs font-bold uppercase tracking-wide text-brand-ink/40 mb-3">
+              Cambiar lente
+            </h4>
+            
+            <div className="flex flex-col gap-3">
+              {displayProducts.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => onProductChange(p)}
+                  className={`flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
+                    p.id === product.id
+                      ? "bg-white ring-2 ring-brand-orange shadow-sm"
+                      : "bg-white hover:bg-brand-ink/5"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={p.img}
+                    alt={p.name}
+                    className="h-16 w-16 rounded-lg object-cover flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-brand-ink line-clamp-1">{p.name}</p>
+                    <p className="text-[10px] text-brand-ink/50">{p.brand}</p>
+                    <p className="text-xs font-bold text-brand-orange mt-1">${p.price}</p>
+                  </div>
+                </button>
+              ))}
             </div>
+
+            {/* Botón "Probar más" al final */}
+            {!showAdditionalProducts && additionalProducts.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowAdditionalProducts(true)}
+                className="mt-4 w-full rounded-xl bg-brand-orange-soft px-4 py-3 text-xs font-bold text-brand-orange transition-all hover:bg-brand-orange hover:text-white"
+              >
+                Probar más ({additionalProducts.length} disponibles)
+              </button>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar"
-            className="grid h-9 w-9 place-items-center rounded-full bg-brand-bg text-brand-ink/60 transition-colors hover:bg-brand-ink/10"
-          >
-            <CloseIcon className="h-5 w-5" />
-          </button>
         </div>
 
-        {/* Contenido scrolleable */}
-        <div className="flex-1 overflow-y-auto px-5 py-6">
+        {/* Columna derecha - Contenido principal */}
+        <div className="flex-1 flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-brand-ink/10 px-5 py-4">
+            <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={product.img}
+                alt={product.name}
+                className="h-12 w-12 rounded-xl object-cover"
+              />
+              <div>
+                <p className="font-display text-sm font-bold text-brand-ink">{product.name}</p>
+                <p className="text-xs text-brand-ink/50">{product.brand}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Cerrar"
+              className="grid h-9 w-9 place-items-center rounded-full bg-brand-bg text-brand-ink/60 transition-colors hover:bg-brand-ink/10"
+            >
+              <CloseIcon className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Contenido scrolleable */}
+          <div className="flex-1 overflow-y-auto px-5 py-6">
           {/* Paso 1: Subir foto */}
           <div className="space-y-4">
             <h3 className="font-display text-lg font-bold text-brand-ink">
@@ -427,18 +595,20 @@ export function TryOnPanel({ product, onClose }: TryOnPanelProps) {
             />
 
             {!imgUrl ? (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="flex w-full flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-brand-ink/20 bg-brand-bg/50 px-6 py-12 transition-colors hover:border-brand-orange hover:bg-brand-orange-soft/30"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-10 w-10 text-brand-ink/40">
-                  <path d="M3 16.5V18a3 3 0 003 3h12a3 3 0 003-3v-1.5M12 3v13M7 8l5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span className="text-sm font-semibold text-brand-ink/60">
-                  Toca para subir una foto
-                </span>
-              </button>
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex w-full flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-brand-ink/20 bg-brand-bg/50 px-6 py-12 transition-colors hover:border-brand-orange hover:bg-brand-orange-soft/30"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-10 w-10 text-brand-ink/40">
+                    <path d="M3 16.5V18a3 3 0 003 3h12a3 3 0 003-3v-1.5M12 3v13M7 8l5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="text-sm font-semibold text-brand-ink/60">
+                    Toca para subir una foto
+                  </span>
+                </button>
+              </div>
             ) : (
               <div className="space-y-3">
                 {/* Área de recorte interactiva */}
@@ -480,7 +650,11 @@ export function TryOnPanel({ product, onClose }: TryOnPanelProps) {
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => setScale((s) => Math.max(0.2, s * 0.8))}
+                    onClick={() => {
+                      const newScale = Math.max(minScale, scale * 0.8);
+                      setScale(newScale);
+                      if (newScale === minScale) setOffset({ x: 0, y: 0 });
+                    }}
                     className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-bg text-brand-ink/70 transition-colors hover:bg-brand-ink/10"
                     aria-label="Alejar"
                   >
@@ -490,11 +664,15 @@ export function TryOnPanel({ product, onClose }: TryOnPanelProps) {
                   </button>
                   <input
                     type="range"
-                    min={0.2}
+                    min={minScale}
                     max={5}
                     step={0.05}
                     value={scale}
-                    onChange={(e) => setScale(parseFloat(e.target.value))}
+                    onChange={(e) => {
+                      const newScale = parseFloat(e.target.value);
+                      setScale(newScale);
+                      if (newScale === minScale) setOffset({ x: 0, y: 0 });
+                    }}
                     className="flex-1 accent-brand-orange"
                   />
                   <button
@@ -513,13 +691,22 @@ export function TryOnPanel({ product, onClose }: TryOnPanelProps) {
                   <p className="text-xs text-brand-ink/40">
                     Arrastra para mover · Usa la rueda o los botones para zoom
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="shrink-0 rounded-full bg-brand-bg px-4 py-2 text-xs font-bold text-brand-ink/70 transition-colors hover:bg-brand-ink/10"
-                  >
-                    Cambiar foto
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="shrink-0 rounded-full bg-brand-bg px-4 py-2 text-xs font-bold text-brand-ink/70 transition-colors hover:bg-brand-ink/10"
+                    >
+                      Cambiar foto
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearImage}
+                      className="shrink-0 rounded-full bg-red-50 px-4 py-2 text-xs font-bold text-red-600 transition-colors hover:bg-red-100"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -650,6 +837,7 @@ export function TryOnPanel({ product, onClose }: TryOnPanelProps) {
               ))}
             </div>
           </div>
+        </div>
         </div>
       </aside>
     </>
