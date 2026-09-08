@@ -188,8 +188,18 @@ function ProductCard({ product, onTryOn }: { product: (typeof products)[number];
         <img
           src={product.img}
           alt={product.name}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          className={`h-full w-full object-cover transition-all duration-500 group-hover:scale-105 ${product.hoverImg ? "group-hover:opacity-0" : ""}`}
         />
+        {product.hoverImg && (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={product.hoverImg}
+              alt={product.name}
+              className="absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-500 group-hover:scale-105 group-hover:opacity-100"
+            />
+          </>
+        )}
         <span
           className={`absolute left-3 top-3 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white ${
             product.blob === "orange" ? "bg-brand-orange" : "bg-brand-purple"
