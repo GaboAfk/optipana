@@ -90,6 +90,10 @@ function extractChatText(response: {
   return "";
 }
 
+function getProductReferenceImage(product: Product): string {
+  return product.hoverImg ?? product.img;
+}
+
 /**
  * Genera automáticamente una descripción del producto a partir de su imagen,
  * usando puter.ai.chat() con visión (equivalente a un "image-to-prompt").
@@ -105,7 +109,7 @@ async function generatePromptFromImage(product: Product): Promise<string> {
     "Focus only on the glasses/sunglasses themselves: their shape, frame color and material, lens color/tint, and style. " +
     "Do not mention the background or setting. Keep it under 60 words, written in English, third person, objective.";
 
-  const response = await window.puter.ai.chat(instruction, product.img);
+  const response = await window.puter.ai.chat(instruction, getProductReferenceImage(product));
   const description = extractChatText(response).trim();
 
   if (!description) {
@@ -449,7 +453,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
 
     try {
       // Cargar la imagen del catálogo y convertirla a base64
-      const catalogImg = await loadImage(product!.img);
+      const catalogImg = await loadImage(getProductReferenceImage(product!));
       const { data: catalogBase64, mime: catalogMime } = imageToBase64(catalogImg, "image/jpeg", 0.9);
 
       const prompt =
