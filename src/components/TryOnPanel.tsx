@@ -281,9 +281,13 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
   }, [product, showAdditionalProducts]);
 
   // Pequeño "nudge" de scroll en la lista al abrir el panel (solo mobile)
-  // para indicar al usuario que la lista es desplazable horizontalmente
+  // para indicar al usuario que la lista es desplazable horizontalmente.
+  // Solo ocurre la primera vez que se abre, no al cambiar de lente.
+  const nudgePrevProduct = useRef<Product | null>(null);
   useEffect(() => {
-    if (!product) return;
+    const wasClosed = nudgePrevProduct.current === null;
+    nudgePrevProduct.current = product;
+    if (!product || !wasClosed) return;
     const isMobile = window.matchMedia("(max-width: 767px)").matches;
     if (!isMobile) return;
     const list = document.querySelector("[data-product-list]") as HTMLElement | null;

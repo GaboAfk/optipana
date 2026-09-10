@@ -174,6 +174,7 @@ export function Catalog() {
 
 function ProductCard({ product, onTryOn }: { product: (typeof products)[number]; onTryOn?: () => void }) {
   const waMessage = `Hola OptiPana, me interesa el producto "${product.name}" (${product.brand}) — $${product.price} USD.`;
+  const [touched, setTouched] = useState(false);
 
   return (
     <motion.article
@@ -181,14 +182,17 @@ function ProductCard({ product, onTryOn }: { product: (typeof products)[number];
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.1 }}
       transition={{ type: "spring" as const, stiffness: 80, damping: 16 }}
-      className="group flex flex-col overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-brand-ink/5 transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-brand-purple/15"
+      onTouchStart={() => setTouched(true)}
+      onTouchEnd={() => setTouched(false)}
+      onTouchCancel={() => setTouched(false)}
+      className={`group flex flex-col overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-brand-ink/5 transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-brand-purple/15 ${touched ? "-translate-y-2 shadow-xl shadow-brand-purple/15" : ""}`}
     >
       <div className="relative aspect-square overflow-hidden bg-brand-bg">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={product.img}
           alt={product.name}
-          className={`h-full w-full object-cover transition-all duration-500 group-hover:scale-105 ${product.hoverImg ? "group-hover:opacity-0" : ""}`}
+          className={`h-full w-full object-cover transition-all duration-500 group-hover:scale-105 ${product.hoverImg ? "group-hover:opacity-0" : ""} ${touched ? "scale-105" : ""} ${product.hoverImg && touched ? "opacity-0" : ""}`}
         />
         {product.hoverImg && (
           <>
@@ -196,7 +200,7 @@ function ProductCard({ product, onTryOn }: { product: (typeof products)[number];
             <img
               src={product.hoverImg}
               alt={product.name}
-              className="absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-500 group-hover:scale-105 group-hover:opacity-100"
+              className={`absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-500 group-hover:scale-105 group-hover:opacity-100 ${touched ? "scale-105 opacity-100" : ""}`}
             />
           </>
         )}
