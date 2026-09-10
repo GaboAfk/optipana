@@ -1,12 +1,31 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, useScroll, useTransform, useInView, animate } from "framer-motion";
+import { motion, useInView, useScroll, useTransform, animate } from "framer-motion";
 import { ClockIcon, SparkleIcon, TagIcon, WalletIcon } from "./icons";
 import { Blob } from "./Blob";
 
 const OFFER_KEY = "optipana-oferta-fin";
 const OFFER_DAYS = 3;
+
+function useLowEndDevice() {
+  const [isLowEnd, setIsLowEnd] = useState(false);
+
+  useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const cores = navigator.hardwareConcurrency || 0;
+    const memory = (navigator as { deviceMemory?: number }).deviceMemory || 0;
+    // Low-end si reduce-motion, o si ambos CPU/RAM son bajos, o si alguno es muy bajo
+    setIsLowEnd(
+      reduced ||
+      (cores <= 4 && memory <= 4) ||
+      cores <= 2 ||
+      memory <= 2,
+    );
+  }, []);
+
+  return isLowEnd;
+}
 
 function useOfferCountdown() {
   const [remaining, setRemaining] = useState<number | null>(null);
@@ -93,7 +112,7 @@ function Card2x1({ countdown }: { countdown: ReturnType<typeof useOfferCountdown
       <div className="pointer-events-none absolute -right-8 -top-8 opacity-10">
         <Blob className="h-52 w-52" color="white" opacity={1} />
       </div>
-      <span className="mb-5 inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-white">
+      <span className="mb-5 inline-block self-start rounded-full bg-white/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-white">
         <ClockIcon className="mr-1 inline h-3.5 w-3.5" />
         Tiempo limitado
       </span>
@@ -102,7 +121,7 @@ function Card2x1({ countdown }: { countdown: ReturnType<typeof useOfferCountdown
       <p className="mb-7 text-sm leading-relaxed text-white/80">
         Con la compra de tus cristales, te llevas <strong>dos monturas</strong> al precio de una.
       </p>
-      <div className="mb-6 flex gap-2">
+      <div className="mt-auto mb-6 flex gap-2">
         <CountdownBox value={countdown.days} label="días" />
         <CountdownBox value={countdown.hours} label="horas" />
         <CountdownBox value={countdown.minutes} label="min" />
@@ -110,7 +129,7 @@ function Card2x1({ countdown }: { countdown: ReturnType<typeof useOfferCountdown
       </div>
       <a
         href="#catalogo"
-        className="inline-block rounded-full bg-white px-6 py-2.5 text-sm font-bold text-[#FA5800] transition-colors hover:bg-orange-50"
+        className="self-start inline-block rounded-full bg-white px-6 py-2.5 text-sm font-bold text-[#FA5800] transition-colors hover:bg-orange-50"
       >
         Aprovechar oferta
       </a>
@@ -122,30 +141,39 @@ function Card0Percent() {
   const { ref, value } = useCountUp(50, 0, 2);
   return (
     <>
+      {/* Gif de Cashea como fondo de la card */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/walking-guy-cashea.gif"
+        alt="Cashea — financia tus lentes en cuotas"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-40"
+      />
       <div className="pointer-events-none absolute -right-8 -top-8 opacity-10">
         <Blob className="h-52 w-52" color="white" opacity={1} />
       </div>
-      <span className="mb-5 inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-white">
-        <WalletIcon className="mr-1 inline h-3.5 w-3.5" />
-        Financiamiento disponible
-      </span>
-      <p className="mb-2 font-display text-8xl font-bold leading-none">
-        <span ref={ref}>{value}%</span>
-      </p>
-      <p className="mb-2 font-display text-xl font-bold">Llévatelos hoy. Paga después.</p>
-      <p className="mb-5 text-sm leading-relaxed text-white/80">
-        0% de inicial — financia tus lentes en <strong className="font-display text-lg">6 cuotas</strong> cómodas.
-      </p>
-      <div className="mb-6 flex items-center gap-3 rounded-2xl bg-white/15 p-4 backdrop-blur">
-        <WalletIcon className="h-8 w-8 shrink-0 text-white" />
-        <p className="text-sm font-bold text-white">Paga tu lente en 6 cuotas sin intereses.</p>
+      <div className="relative flex flex-1 flex-col">
+        <span className="mb-5 inline-block self-start rounded-full  px-3 py-1 text-xs font-bold uppercase tracking-widest text-white">
+          {/* <WalletIcon className="mr-1 inline h-3.5 w-3.5" />
+          Financiamiento disponible */}
+        </span>
+        <p className="mb-2 font-display text-8xl font-bold leading-none">
+          <span ref={ref}>{value}%</span>
+        </p>
+        <p className="mb-2 font-display text-xl font-bold">Llévatelos hoy. Paga después con Cashea.</p>
+        <p className="mb-5 text-sm leading-relaxed text-white/80">
+          0% de inicial — financia tus lentes en <strong className="font-display text-lg">6 cuotas</strong> cómodas.
+        </p>
+        <div className="mt-auto mb-6 flex items-center gap-3 rounded-2xl bg-white/15 p-4 backdrop-blur">
+          <WalletIcon className="h-8 w-8 shrink-0 text-white" />
+          <p className="text-sm font-bold text-white">Paga tu lente en 6 cuotas sin intereses.</p>
+        </div>
+        <a
+          href="#contacto"
+          className="self-start inline-block rounded-full bg-white px-6 py-2.5 text-sm font-bold text-[#663399] transition-colors hover:bg-purple-50"
+        >
+          Saber más
+        </a>
       </div>
-      <a
-        href="#contacto"
-        className="inline-block rounded-full bg-white px-6 py-2.5 text-sm font-bold text-[#663399] transition-colors hover:bg-purple-50"
-      >
-        Saber más
-      </a>
     </>
   );
 }
@@ -157,7 +185,7 @@ function CardPrecios() {
       <div className="pointer-events-none absolute -right-8 -top-8 opacity-10">
         <Blob className="h-52 w-52" color="#FA5800" opacity={1} />
       </div>
-      <span className="mb-5 inline-block rounded-full bg-[#FA5800]/80 px-3 py-1 text-xs font-bold uppercase tracking-widest text-white">
+      <span className="mb-5 inline-block self-start rounded-full bg-[#FA5800]/80 px-3 py-1 text-xs font-bold uppercase tracking-widest text-white">
         <TagIcon className="mr-1 inline h-3.5 w-3.5" />
         Esta semana
       </span>
@@ -168,7 +196,7 @@ function CardPrecios() {
       <p className="mb-5 text-sm leading-relaxed text-white/70">
         Visítanos en cualquiera de nuestros <strong>4 locales</strong> y pregunta por las ofertas del momento.
       </p>
-      <div className="mb-6 grid grid-cols-2 gap-3">
+      <div className="mt-auto mb-6 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-white/10 p-3 text-center">
           <p className="font-display text-2xl font-bold text-[#FA5800]">4</p>
           <p className="text-xs font-bold text-white/60">locales</p>
@@ -182,7 +210,7 @@ function CardPrecios() {
       </div>
       <a
         href="#locales"
-        className="inline-block rounded-full bg-[#FA5800] px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#e04d00]"
+        className="self-start inline-block rounded-full bg-[#FA5800] px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#e04d00]"
       >
         Ver locales
       </a>
@@ -196,17 +224,22 @@ const CARDS = [
   { bg: "bg-gradient-to-br from-[#1A0D2B] to-[#2D1452]", shadow: "", Component: CardPrecios },
 ] as const;
 
-export function Offers() {
-  const countdown = useOfferCountdown();
+function renderCard(Component: (typeof CARDS)[number]["Component"], countdown: ReturnType<typeof useOfferCountdown>) {
+  if (Component === Card2x1) return <Card2x1 countdown={countdown} />;
+  if (Component === Card0Percent) return <Card0Percent />;
+  return <CardPrecios />;
+}
+
+/* ── Modos mobile ────────────────────────────────────────── */
+
+function MobileHighEndCarousel({ countdown }: { countdown: ReturnType<typeof useOfferCountdown> }) {
   const mobileScrollRef = useRef<HTMLDivElement>(null);
 
-  // Scroll vertical del contenedor → progreso 0..1
   const { scrollYProgress } = useScroll({
     target: mobileScrollRef,
     offset: ["start start", "end end"],
   });
 
-  // 3 tarjetas de ~85vw → desplazar ~2 * 85vw = 170vw → -66.7% del track
   const x = useTransform(scrollYProgress, [0, 1], ["0%", "-66.7%"]);
 
   // Swipe horizontal manual → mueve el scroll vertical del contenedor
@@ -230,7 +263,6 @@ export function Offers() {
       const dx = e.touches[0].clientX - touchStartX;
       const maxV = container.scrollHeight - window.innerHeight;
 
-      // Determinar dirección en el primer movimiento
       if (!isHorizontal && !isVertical) {
         if (Math.abs(dx) > 10) {
           isHorizontal = true;
@@ -241,7 +273,6 @@ export function Offers() {
 
       if (isHorizontal) {
         e.preventDefault();
-        // Swipe derecha → scroll arriba, swipe izquierda → scroll abajo
         const deltaScroll = -(dx / window.innerWidth) * maxV * 0.5;
         container.scrollTop = touchStartScroll + deltaScroll;
       }
@@ -258,11 +289,78 @@ export function Offers() {
     };
   }, []);
 
-  const renderCard = (Component: (typeof CARDS)[number]["Component"]) => {
-    if (Component === Card2x1) return <Card2x1 countdown={countdown} />;
-    if (Component === Card0Percent) return <Card0Percent />;
-    return <CardPrecios />;
-  };
+  return (
+    <div ref={mobileScrollRef} className="relative h-[250vh] md:hidden">
+      <div className="sticky top-0 flex h-screen flex-col overflow-hidden">
+        <div className="pt-16 text-center">
+          <span className="inline-flex items-center gap-2 rounded-full bg-brand-orange px-5 py-2 text-xs font-bold uppercase tracking-widest text-white">
+            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-white" />
+            Ofertas por tiempo limitado
+          </span>
+        </div>
+
+        <div className="flex flex-1 items-center overflow-hidden">
+          <motion.div
+            style={{ x }}
+            className="flex gap-5 pl-4 pr-4 will-change-transform"
+          >
+            {CARDS.map(({ bg, shadow, Component }, i) => (
+              <div
+                key={i}
+                className={`relative flex w-[85vw] max-w-sm shrink-0 flex-col overflow-hidden rounded-3xl ${bg} p-8 text-white shadow-xl ${shadow}`}
+              >
+                {renderCard(Component, countdown)}
+              </div>
+            ))}
+          </motion.div>
+        </div>
+
+        <div className="pb-8 pt-4 text-center">
+          <div className="mx-auto h-1 w-24 overflow-hidden rounded-full bg-white/20">
+            <motion.div
+              style={{ scaleX: scrollYProgress }}
+              className="h-full origin-left rounded-full bg-brand-orange"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MobileLowEndCarousel({ countdown }: { countdown: ReturnType<typeof useOfferCountdown> }) {
+  return (
+    <div className="md:hidden">
+      <div className="pb-6 text-center">
+        <span className="inline-flex items-center gap-2 rounded-full bg-brand-orange px-5 py-2 text-xs font-bold uppercase tracking-widest text-white">
+          <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-white" />
+          Ofertas por tiempo limitado
+        </span>
+      </div>
+
+      <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto pb-6 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {CARDS.map(({ bg, shadow, Component }, i) => (
+          <div
+            key={i}
+            className={`relative flex w-[85vw] max-w-sm shrink-0 snap-center flex-col overflow-hidden rounded-3xl ${bg} p-8 text-white shadow-xl ${shadow} will-change-transform`}
+          >
+            {renderCard(Component, countdown)}
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-3 text-center text-xs font-semibold text-brand-ink/40">
+        Desliza para ver más ofertas
+      </p>
+    </div>
+  );
+}
+
+/* ── Componente principal ────────────────────────────────── */
+
+export function Offers() {
+  const countdown = useOfferCountdown();
+  const isLowEnd = useLowEndDevice();
 
   return (
     <section id="ofertas" className="relative bg-[#F7F7F9] py-16 px-4 sm:px-6 lg:px-8">
@@ -274,47 +372,12 @@ export function Offers() {
           </span>
         </div>
 
-        {/* ── Mobile: scroll vertical → horizontal + swipe horizontal ──
-            Contenedor alto que se queda "pegado" (sticky).
-            Transform CSS para performance, sin overflow-x-auto. */}
-        <div ref={mobileScrollRef} className="relative h-[250vh] md:hidden">
-          <div className="sticky top-0 flex h-screen flex-col overflow-hidden">
-            {/* Badge arriba en mobile */}
-            <div className="pt-16 text-center">
-              <span className="inline-flex items-center gap-2 rounded-full bg-brand-orange px-5 py-2 text-xs font-bold uppercase tracking-widest text-white">
-                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-white" />
-                Ofertas por tiempo limitado
-              </span>
-            </div>
-
-            {/* Track con transform CSS (sin overflow-x-auto) */}
-            <div className="flex flex-1 items-center overflow-hidden">
-              <motion.div
-                style={{ x }}
-                className="flex gap-5 pl-4 pr-4 will-change-transform"
-              >
-                {CARDS.map(({ bg, shadow, Component }, i) => (
-                  <div
-                    key={i}
-                    className={`relative w-[85vw] max-w-sm shrink-0 overflow-hidden rounded-3xl ${bg} p-8 text-white shadow-xl ${shadow}`}
-                  >
-                    {renderCard(Component)}
-                  </div>
-                ))}
-              </motion.div>
-            </div>
-
-            {/* Indicador de progreso */}
-            <div className="pb-8 pt-4 text-center">
-              <div className="mx-auto h-1 w-24 overflow-hidden rounded-full bg-white/20">
-                <motion.div
-                  style={{ scaleX: scrollYProgress }}
-                  className="h-full origin-left rounded-full bg-brand-orange"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* ── Mobile: dos modos según FPS medido ── */}
+        {isLowEnd ? (
+          <MobileLowEndCarousel countdown={countdown} />
+        ) : (
+          <MobileHighEndCarousel countdown={countdown} />
+        )}
 
         {/* ── Desktop: grid de 3 columnas con fade-up escalonado ─────── */}
         <motion.div
@@ -328,9 +391,9 @@ export function Offers() {
             <motion.div
               key={i}
               variants={cardVariantsDesktop}
-              className={`relative overflow-hidden rounded-3xl ${bg} p-8 text-white shadow-xl ${shadow} transition-transform duration-300 hover:-translate-y-1.5`}
+              className={`relative flex flex-col overflow-hidden rounded-3xl ${bg} p-8 text-white shadow-xl ${shadow} transition-transform duration-300 hover:-translate-y-1.5`}
             >
-              {renderCard(Component)}
+              {renderCard(Component, countdown)}
             </motion.div>
           ))}
         </motion.div>

@@ -58,7 +58,7 @@ export function Testimonials() {
         </motion.div>
 
         {/* Grid / carrusel en mobile */}
-        <div className="mt-12 flex snap-x snap-mandatory gap-6 overflow-x-auto pb-4 lg:grid lg:grid-cols-3 lg:overflow-visible lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mt-12 flex snap-x snap-mandatory gap-6 overflow-x-auto pb-4 will-change-transform lg:grid lg:grid-cols-3 lg:overflow-visible lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {TESTIMONIALS.map((t, i) => (
             <motion.article
               key={t.name}

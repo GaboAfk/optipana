@@ -152,8 +152,8 @@ export function Jornadas() {
           ))}
         </motion.div>
       </div>
-      {/* Onda inferior — transición hacia Catalog (#ffffff) */}
-      <WaveDivider fill="#ffffff" />
+      {/* Onda inferior — transición hacia BeforeAfter (#F7F7F9) */}
+      <WaveDivider fill="#F7F7F9" />
     </section>
   );
 }

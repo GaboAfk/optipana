@@ -99,6 +99,8 @@ export function Services() {
           })}
         </motion.div>
       </div>
+      {/* Onda inferior — transición hacia Catalog (#ffffff) */}
+      <WaveDivider fill="#ffffff" />
     </section>
   );
 }
