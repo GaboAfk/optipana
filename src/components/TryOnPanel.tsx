@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { products, type Category, type Gender, type Product } from "@/data/products";
 import { CloseIcon } from "./icons";
 
@@ -179,13 +179,29 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
   const [autoDescription, setAutoDescription] = useState<string | null>(null);
   const [describing, setDescribing] = useState(false);
   const [selectedModel, setSelectedModel] = useState<ModelId>("google/gemini-2.5-flash-image");
+  const [showHoverImg, setShowHoverImg] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const cropRef = useRef<HTMLDivElement>(null);
+  // Cámara en vivo (getUserMedia)
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const productButtonRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
   // Pan & zoom state
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
+  const pinchRef = useRef<{ initialDist: number; initialScale: number } | null>(null);
+
+  // Drag-to-close state (mobile)
+  const [panelX, setPanelX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const prevProductRef = useRef<Product | null>(null);
+  const panelDragRef = useRef<{ startX: number; startY: number; dragging: boolean; horizontal: boolean } | null>(null);
 
   // Cargar imagen guardada al montar el componente
   useEffect(() => {
@@ -217,6 +233,83 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
     setAutoDescription(null);
     setDescribing(false);
     setShowAdditionalProducts(false);
+    setShowHoverImg(false);
+    setIsDragging(false);
+  }, [product]);
+
+  // Mientras el panel está cerrado, se mantiene fuera de pantalla para que
+  // el primer render al abrir ya parta desde la derecha (sin flash).
+  useLayoutEffect(() => {
+    if (!product) setPanelX(window.innerWidth);
+  }, [product]);
+
+  // Animación de entrada: cuando el panel se abre (product pasa de null a un valor),
+  // se desliza desde la derecha. Al cambiar de producto con el panel ya abierto, se queda en su sitio.
+  useEffect(() => {
+    const wasClosed = prevProductRef.current === null;
+    prevProductRef.current = product;
+    if (!product || !wasClosed) return;
+
+    // Doble rAF: el navegador pinta primero la posición fuera de pantalla y luego anima a 0
+    let raf2: number;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setPanelX(0));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, [product]);
+
+  // Activa la imagen hover del producto seleccionado
+  useEffect(() => {
+    setShowHoverImg(!!product?.hoverImg);
+  }, [product]);
+
+  // Hace scroll al botón del producto seleccionado si está fuera de la vista
+  useEffect(() => {
+    if (!product) return;
+    const btn = productButtonRefs.current.get(product.id);
+    if (!btn) return;
+    // Solo en mobile (scroll horizontal); en desktop el scroll es vertical
+    const isMobile = window.matchMedia("(max-width: 767px)").matches;
+    btn.scrollIntoView({
+      behavior: "smooth",
+      block: isMobile ? "nearest" : "nearest",
+      inline: "center",
+    });
+  }, [product, showAdditionalProducts]);
+
+  // Pequeño "nudge" de scroll en la lista al abrir el panel (solo mobile)
+  // para indicar al usuario que la lista es desplazable horizontalmente
+  useEffect(() => {
+    if (!product) return;
+    const isMobile = window.matchMedia("(max-width: 767px)").matches;
+    if (!isMobile) return;
+    const list = document.querySelector("[data-product-list]") as HTMLElement | null;
+    if (!list) return;
+
+    let animId: number;
+    const timer = setTimeout(() => {
+      const startScroll = list.scrollLeft;
+      const distance = 80;
+      const duration = 1200;
+      const startTime = performance.now();
+
+      // Ease in-out sinusoidal: va y vuelve suavemente
+      const tick = (now: number) => {
+        const t = Math.min((now - startTime) / duration, 1);
+        const progress = Math.sin(t * Math.PI); // 0 → 1 → 0
+        list.scrollLeft = startScroll + distance * progress;
+        if (t < 1) animId = requestAnimationFrame(tick);
+      };
+      animId = requestAnimationFrame(tick);
+    }, 600);
+
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(animId);
+    };
   }, [product]);
 
   // Guardar estado de zoom y offset cuando cambian (con debounce)
@@ -277,7 +370,12 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    loadFile(file);
+    // Reset para poder seleccionar el mismo archivo otra vez
+    e.target.value = "";
+  };
 
+  const loadFile = (file: File) => {
     if (imgUrl) URL.revokeObjectURL(imgUrl);
     const url = URL.createObjectURL(file);
     setImgUrl(url);
@@ -302,6 +400,79 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
       }
     };
     img.src = url;
+  };
+
+  // --- Cámara en vivo ---
+  const stopCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setCameraActive(false);
+  }, []);
+
+  const startCamera = async (mode: "user" | "environment" = facingMode) => {
+    // Fallback al input nativo si el navegador no soporta getUserMedia (o no hay HTTPS)
+    if (!navigator.mediaDevices?.getUserMedia) {
+      cameraInputRef.current?.click();
+      return;
+    }
+    stopCamera();
+    setCameraError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: mode, width: { ideal: 1280 }, height: { ideal: 1280 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      setFacingMode(mode);
+      setCameraActive(true);
+    } catch (err) {
+      console.error("Camera error:", err);
+      const name = err instanceof DOMException ? err.name : "";
+      if (name === "NotAllowedError" || name === "SecurityError") {
+        setCameraError("No se pudo acceder a la cámara. Revisa los permisos del navegador.");
+      } else if (name === "NotFoundError" || name === "OverconstrainedError" || name === "DevicesNotFoundError") {
+        setCameraError("No se encontró ninguna cámara en este dispositivo.");
+      } else {
+        setCameraError("No se pudo iniciar la cámara. Inténtalo de nuevo.");
+      }
+    }
+  };
+
+  // Conecta el stream al <video> cuando se monta
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!cameraActive || !video || !streamRef.current) return;
+    video.srcObject = streamRef.current;
+    video.play().catch(() => {});
+  }, [cameraActive]);
+
+  // Apaga la cámara al cerrar el panel o desmontar (no al cambiar de lente)
+  const isOpen = !!product;
+  useEffect(() => {
+    if (!isOpen) return;
+    return stopCamera;
+  }, [isOpen, stopCamera]);
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    // La cámara frontal se muestra en espejo; se voltea al capturar para que coincida con lo que ve el usuario
+    if (facingMode === "user") {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(video, 0, 0);
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      loadFile(new File([blob], "camera.jpg", { type: "image/jpeg" }));
+      stopCamera();
+    }, "image/jpeg", 0.92);
   };
 
   // Limpiar la imagen guardada
@@ -374,6 +545,39 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
     if (newScale === minScale) {
       setOffset({ x: 0, y: 0 });
     }
+  };
+
+  // --- Pinch-to-zoom (touch con dos dedos) ---
+  const getPinchDistance = (touches: React.TouchList) => {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.hypot(dx, dy);
+  };
+
+  const onTouchStartCrop = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && imgEl) {
+      e.preventDefault();
+      pinchRef.current = {
+        initialDist: getPinchDistance(e.touches),
+        initialScale: scale,
+      };
+    }
+  };
+
+  const onTouchMoveCrop = (e: React.TouchEvent) => {
+    if (!pinchRef.current || !imgEl || e.touches.length !== 2) return;
+    e.preventDefault();
+    const dist = getPinchDistance(e.touches);
+    const ratio = dist / pinchRef.current.initialDist;
+    const newScale = Math.max(minScale, Math.min(5, pinchRef.current.initialScale * ratio));
+    setScale(newScale);
+    if (newScale === minScale) {
+      setOffset({ x: 0, y: 0 });
+    }
+  };
+
+  const onTouchEndCrop = () => {
+    pinchRef.current = null;
   };
 
   // --- Recorta la imagen visible del área de crop y devuelve base64 ---
@@ -503,28 +707,62 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
 
       {/* Panel lateral derecho */}
       <aside
-        className="fixed right-0 top-0 z-[70] flex h-full w-full max-w-4xl bg-white shadow-2xl flex-col md:flex-row"
+        className={`fixed right-0 top-0 z-[70] flex h-full w-full max-w-4xl bg-white shadow-2xl flex-col md:flex-row ${!isDragging ? "transition-transform duration-300 ease-out" : ""}`}
+        style={{ transform: `translateX(${panelX}px)` }}
+        onTouchStart={(e) => {
+          // Solo en mobile
+          if (window.matchMedia("(min-width: 768px)").matches) return;
+          // No iniciar drag-to-close si el toque comienza en la lista scrolleable
+          // o en el área de recorte/zoom de la imagen
+          const target = e.target as HTMLElement;
+          if (target.closest("[data-product-list]")) return;
+          if (target.closest("[data-crop-area]")) return;
+          if (target.closest("[data-zoom-controls]")) return;
+          setIsDragging(true);
+          panelDragRef.current = {
+            startX: e.touches[0].clientX,
+            startY: e.touches[0].clientY,
+            dragging: false,
+            horizontal: false,
+          };
+        }}
+        onTouchMove={(e) => {
+          const drag = panelDragRef.current;
+          if (!drag) return;
+          const dx = e.touches[0].clientX - drag.startX;
+          const dy = e.touches[0].clientY - drag.startY;
+
+          // Determinar dirección del gesto
+          if (!drag.horizontal && !drag.dragging) {
+            if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+              drag.horizontal = Math.abs(dx) > Math.abs(dy);
+              drag.dragging = true;
+            }
+          }
+
+          // Solo arrastrar horizontalmente hacia la derecha
+          if (drag.horizontal && dx > 0) {
+            setPanelX(dx);
+          }
+        }}
+        onTouchEnd={() => {
+          const drag = panelDragRef.current;
+          if (!drag) return;
+          setIsDragging(false);
+          // Si arrastró más de 100px hacia la derecha, animar salida y cerrar
+          if (panelX > 100) {
+            setPanelX(window.innerWidth);
+            setTimeout(onClose, 300);
+          } else {
+            setPanelX(0);
+          }
+          panelDragRef.current = null;
+        }}
         role="dialog"
         aria-label="Probador virtual"
       >
         {/* Lista de productos - Mobile (arriba) / Desktop (izquierda) */}
-        <div className="md:w-64 border-b md:border-b-0 md:border-r border-brand-ink/ flex flex-col bg-brand-bg/50 flex-shrink-0 h-auto md:h-full">
-          {/* Header de lista - solo en mobile */}
-          <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-brand-ink/10 flex-shrink-0">
-            <h4 className="text-xs font-bold uppercase tracking-wide text-brand-ink/40">
-              Cambiar lente
-            </h4>
-            {!showAdditionalProducts && additionalProducts.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowAdditionalProducts(true)}
-                className="text-[10px] font-bold text-brand-orange hover:text-brand-orange-dark"
-              >
-                Probar más
-              </button>
-            )}
-          </div>
-
+        <div className="md:w-64 border-b md:border-b-0 md:border-r border-brand-ink/10 flex flex-col bg-brand-bg/50 flex-shrink-0 h-auto md:h-full">
           {/* Lista horizontal en mobile, vertical en desktop */}
           <div className={`p-4 ${!showAdditionalProducts && additionalProducts.length > 0 ? 'md:pb-16' : ''} flex-shrink-0 md:flex-1 md:overflow-y-auto`}>
             {/* Título solo en desktop */}
@@ -532,24 +770,42 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
               Cambiar lente
             </h4>
             
-            <div className={`flex gap-3 ${!showAdditionalProducts && additionalProducts.length > 0 ? 'md:flex-col md:gap-3' : 'md:flex-col md:gap-3'} overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 scrollbar-hide`}>
+            <div data-product-list className={`flex gap-3 ${!showAdditionalProducts && additionalProducts.length > 0 ? 'md:flex-col md:gap-3' : 'md:flex-col md:gap-3'} overflow-x-auto md:overflow-x-visible pt-2 pb-3 pl-2 pr-2 md:pl-0 md:pr-0 md:pb-0 scrollbar-hide`}>
               {displayProducts.map((p) => (
                 <button
                   key={p.id}
+                  ref={(el) => {
+                    if (el) productButtonRefs.current.set(p.id, el);
+                    else productButtonRefs.current.delete(p.id);
+                  }}
                   type="button"
                   onClick={() => onProductChange(p)}
-                  className={`flex-shrink-0 flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
+                  className={`relative flex-shrink-0 flex items-center gap-3 p-3 rounded-xl transition-all text-left ${
                     p.id === product.id
                       ? "bg-white ring-2 ring-brand-orange shadow-sm"
                       : "bg-white hover:bg-brand-ink/5"
                   }`}
                 >
+                  {/* Imagen del modelo */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={p.img}
                     alt={p.name}
-                    className="h-12 w-12 md:h-16 md:w-16 rounded-lg object-cover flex-shrink-0"
+                    className={`h-12 w-12 md:h-16 md:w-16 rounded-lg object-cover flex-shrink-0 transition-all duration-500 ${
+                      p.id === product.id && p.hoverImg && showHoverImg ? "opacity-0" : "opacity-100"
+                    }`}
                   />
+                  {/* Imagen del lente (hover) */}
+                  {p.hoverImg && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={p.hoverImg}
+                      alt={p.name}
+                      className={`pointer-events-none absolute h-12 w-12 md:h-16 md:w-16 rounded-lg object-cover transition-all duration-500 ${
+                        p.id === product.id && showHoverImg ? "opacity-100" : "opacity-0"
+                      }`}
+                    />
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-brand-ink line-clamp-1">{p.name}</p>
                     <p className="text-[10px] text-brand-ink/50">{p.brand}</p>
@@ -599,7 +855,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
           </div>
 
           {/* Contenido scrolleable */}
-          <div className="flex-1 overflow-y-auto px-5 py-6">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-6">
           {/* Paso 1: Subir foto */}
           <div className="space-y-4">
             <h3 className="font-display text-lg font-bold text-brand-ink">
@@ -616,32 +872,126 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
               onChange={handleFileChange}
               className="hidden"
             />
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="user"
+              onChange={handleFileChange}
+              className="hidden"
+            />
 
-            {!imgUrl ? (
+            {!imgUrl && cameraActive ? (
               <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex w-full flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-brand-ink/20 bg-brand-bg/50 px-6 py-12 transition-colors hover:border-brand-orange hover:bg-brand-orange-soft/30"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-10 w-10 text-brand-ink/40">
-                    <path d="M3 16.5V18a3 3 0 003 3h12a3 3 0 003-3v-1.5M12 3v13M7 8l5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  <span className="text-sm font-semibold text-brand-ink/60">
-                    Toca para subir una foto
-                  </span>
-                </button>
+                {/* Visor de cámara en vivo */}
+                <div className="relative mx-auto aspect-square w-full max-w-[320px] overflow-hidden rounded-2xl bg-black ring-1 ring-brand-ink/10">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="h-full w-full object-cover"
+                    style={{ transform: facingMode === "user" ? "scaleX(-1)" : undefined }}
+                  />
+                  {/* Cerrar cámara */}
+                  <button
+                    type="button"
+                    onClick={stopCamera}
+                    aria-label="Cancelar cámara"
+                    className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur transition-colors hover:bg-black/70"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+                      <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                  {/* Cambiar cámara (frontal/trasera) */}
+                  <button
+                    type="button"
+                    onClick={() => startCamera(facingMode === "user" ? "environment" : "user")}
+                    aria-label="Cambiar cámara"
+                    className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur transition-colors hover:bg-black/70"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+                      <path d="M4 10a8 8 0 0114-4.9M20 14a8 8 0 01-14 4.9" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M18 2v4h-4M6 22v-4h4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                  {/* Disparador */}
+                  <button
+                    type="button"
+                    onClick={capturePhoto}
+                    aria-label="Tomar foto"
+                    className="absolute bottom-4 left-1/2 flex h-16 w-16 -translate-x-1/2 items-center justify-center rounded-full border-4 border-white bg-white/30 backdrop-blur transition-transform active:scale-90"
+                  >
+                    <span className="h-12 w-12 rounded-full bg-white" />
+                  </button>
+                </div>
+              </div>
+            ) : !imgUrl ? (
+              <div className="space-y-3">
+                {/* Área de recorte con dos botones que ocupan todo el espacio */}
+                <div className="mx-auto flex aspect-square w-full max-w-[320px] flex-col overflow-hidden rounded-2xl border-2 border-dashed border-brand-ink/20 bg-brand-bg/50">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex flex-1 flex-col items-center justify-center gap-2 text-brand-ink/60 transition-colors hover:bg-brand-ink/5"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-10 w-10">
+                      <path d="M3 16.5V18a3 3 0 003 3h12a3 3 0 003-3v-1.5M12 3v13M7 8l5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <span className="text-sm font-semibold">Subir imagen</span>
+                  </button>
+                  <div className="h-px w-full bg-brand-ink/10" />
+                  <button
+                    type="button"
+                    onClick={() => { setCameraError(null); startCamera(); }}
+                    className={`flex flex-1 flex-col items-center justify-center gap-2 px-4 text-center transition-colors ${
+                      cameraError
+                        ? "bg-red-50 text-red-600 hover:bg-red-100"
+                        : "text-brand-ink/60 hover:bg-brand-ink/5"
+                    }`}
+                  >
+                    {cameraError ? (
+                      <>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-8 w-8">
+                          <path d="M12 9v4M12 17h.01" strokeLinecap="round" />
+                          <circle cx="12" cy="12" r="9" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <span className="text-xs font-medium leading-snug">{cameraError}</span>
+                        <span className="mt-1 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5">
+                            <path d="M4 4v6h6M20 20v-6h-6" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M20 10A8 8 0 006 5.3M4 14a8 8 0 0014 4.7" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          Reintentar
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-10 w-10">
+                          <path d="M3 8a2 2 0 012-2h2.5l1.5-2h6l1.5 2H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" strokeLinecap="round" strokeLinejoin="round" />
+                          <circle cx="12" cy="12.5" r="3.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <span className="text-sm font-semibold">Usar cámara</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
                 {/* Área de recorte interactiva */}
                 <div
                   ref={cropRef}
+                  data-crop-area
                   onPointerDown={onPointerDown}
                   onPointerMove={onPointerMove}
                   onPointerUp={onPointerUp}
                   onPointerCancel={onPointerUp}
                   onWheel={onWheel}
+                  onTouchStart={onTouchStartCrop}
+                  onTouchMove={onTouchMoveCrop}
+                  onTouchEnd={onTouchEndCrop}
                   className="relative mx-auto aspect-square w-full max-w-[320px] cursor-grab touch-none select-none overflow-hidden rounded-2xl bg-brand-bg ring-1 ring-brand-ink/10 active:cursor-grabbing"
                 >
                   {imgEl && (
@@ -669,7 +1019,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
                 </div>
 
                 {/* Controles de zoom */}
-                <div className="flex items-center gap-3">
+                <div data-zoom-controls className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={() => {
@@ -709,11 +1059,11 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-xs text-brand-ink/40">
                     Arrastra para mover · Usa la rueda o los botones para zoom
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}

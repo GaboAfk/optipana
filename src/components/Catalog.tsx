@@ -215,7 +215,7 @@ function ProductCard({ product, onTryOn }: { product: (typeof products)[number];
         </p>
         <h3 className="font-display text-lg font-bold leading-snug text-brand-ink">{product.name}</h3>
 
-        <div className="mt-4 flex items-end justify-between gap-3 border-t border-brand-ink/5 pt-4">
+        <div className="mt-auto flex items-end justify-between gap-3 border-t border-brand-ink/5 pt-4">
           <p className="font-display text-2xl font-bold text-brand-orange">${product.price}</p>
           <div className="flex gap-2">
             {onTryOn && (

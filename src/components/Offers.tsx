@@ -112,7 +112,7 @@ function Card2x1({ countdown }: { countdown: ReturnType<typeof useOfferCountdown
       <div className="pointer-events-none absolute -right-8 -top-8 opacity-10">
         <Blob className="h-52 w-52" color="white" opacity={1} />
       </div>
-      <span className="mb-5 inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-white">
+      <span className="mb-5 inline-block self-start rounded-full bg-white/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-white">
         <ClockIcon className="mr-1 inline h-3.5 w-3.5" />
         Tiempo limitado
       </span>
@@ -121,7 +121,7 @@ function Card2x1({ countdown }: { countdown: ReturnType<typeof useOfferCountdown
       <p className="mb-7 text-sm leading-relaxed text-white/80">
         Con la compra de tus cristales, te llevas <strong>dos monturas</strong> al precio de una.
       </p>
-      <div className="mb-6 flex gap-2">
+      <div className="mt-auto mb-6 flex gap-2">
         <CountdownBox value={countdown.days} label="días" />
         <CountdownBox value={countdown.hours} label="horas" />
         <CountdownBox value={countdown.minutes} label="min" />
@@ -129,7 +129,7 @@ function Card2x1({ countdown }: { countdown: ReturnType<typeof useOfferCountdown
       </div>
       <a
         href="#catalogo"
-        className="inline-block rounded-full bg-white px-6 py-2.5 text-sm font-bold text-[#FA5800] transition-colors hover:bg-orange-50"
+        className="self-start inline-block rounded-full bg-white px-6 py-2.5 text-sm font-bold text-[#FA5800] transition-colors hover:bg-orange-50"
       >
         Aprovechar oferta
       </a>
@@ -141,30 +141,39 @@ function Card0Percent() {
   const { ref, value } = useCountUp(50, 0, 2);
   return (
     <>
+      {/* Gif de Cashea como fondo de la card */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/walking-guy-cashea.gif"
+        alt="Cashea — financia tus lentes en cuotas"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-40"
+      />
       <div className="pointer-events-none absolute -right-8 -top-8 opacity-10">
         <Blob className="h-52 w-52" color="white" opacity={1} />
       </div>
-      <span className="mb-5 inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-bold uppercase tracking-widest text-white">
-        <WalletIcon className="mr-1 inline h-3.5 w-3.5" />
-        Financiamiento disponible
-      </span>
-      <p className="mb-2 font-display text-8xl font-bold leading-none">
-        <span ref={ref}>{value}%</span>
-      </p>
-      <p className="mb-2 font-display text-xl font-bold">Llévatelos hoy. Paga después.</p>
-      <p className="mb-5 text-sm leading-relaxed text-white/80">
-        0% de inicial — financia tus lentes en <strong className="font-display text-lg">6 cuotas</strong> cómodas.
-      </p>
-      <div className="mb-6 flex items-center gap-3 rounded-2xl bg-white/15 p-4 backdrop-blur">
-        <WalletIcon className="h-8 w-8 shrink-0 text-white" />
-        <p className="text-sm font-bold text-white">Paga tu lente en 6 cuotas sin intereses.</p>
+      <div className="relative flex flex-1 flex-col">
+        <span className="mb-5 inline-block self-start rounded-full  px-3 py-1 text-xs font-bold uppercase tracking-widest text-white">
+          {/* <WalletIcon className="mr-1 inline h-3.5 w-3.5" />
+          Financiamiento disponible */}
+        </span>
+        <p className="mb-2 font-display text-8xl font-bold leading-none">
+          <span ref={ref}>{value}%</span>
+        </p>
+        <p className="mb-2 font-display text-xl font-bold">Llévatelos hoy. Paga después con Cashea.</p>
+        <p className="mb-5 text-sm leading-relaxed text-white/80">
+          0% de inicial — financia tus lentes en <strong className="font-display text-lg">6 cuotas</strong> cómodas.
+        </p>
+        <div className="mt-auto mb-6 flex items-center gap-3 rounded-2xl bg-white/15 p-4 backdrop-blur">
+          <WalletIcon className="h-8 w-8 shrink-0 text-white" />
+          <p className="text-sm font-bold text-white">Paga tu lente en 6 cuotas sin intereses.</p>
+        </div>
+        <a
+          href="#contacto"
+          className="self-start inline-block rounded-full bg-white px-6 py-2.5 text-sm font-bold text-[#663399] transition-colors hover:bg-purple-50"
+        >
+          Saber más
+        </a>
       </div>
-      <a
-        href="#contacto"
-        className="inline-block rounded-full bg-white px-6 py-2.5 text-sm font-bold text-[#663399] transition-colors hover:bg-purple-50"
-      >
-        Saber más
-      </a>
     </>
   );
 }
@@ -176,7 +185,7 @@ function CardPrecios() {
       <div className="pointer-events-none absolute -right-8 -top-8 opacity-10">
         <Blob className="h-52 w-52" color="#FA5800" opacity={1} />
       </div>
-      <span className="mb-5 inline-block rounded-full bg-[#FA5800]/80 px-3 py-1 text-xs font-bold uppercase tracking-widest text-white">
+      <span className="mb-5 inline-block self-start rounded-full bg-[#FA5800]/80 px-3 py-1 text-xs font-bold uppercase tracking-widest text-white">
         <TagIcon className="mr-1 inline h-3.5 w-3.5" />
         Esta semana
       </span>
@@ -187,7 +196,7 @@ function CardPrecios() {
       <p className="mb-5 text-sm leading-relaxed text-white/70">
         Visítanos en cualquiera de nuestros <strong>4 locales</strong> y pregunta por las ofertas del momento.
       </p>
-      <div className="mb-6 grid grid-cols-2 gap-3">
+      <div className="mt-auto mb-6 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-white/10 p-3 text-center">
           <p className="font-display text-2xl font-bold text-[#FA5800]">4</p>
           <p className="text-xs font-bold text-white/60">locales</p>
@@ -201,7 +210,7 @@ function CardPrecios() {
       </div>
       <a
         href="#locales"
-        className="inline-block rounded-full bg-[#FA5800] px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#e04d00]"
+        className="self-start inline-block rounded-full bg-[#FA5800] px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#e04d00]"
       >
         Ver locales
       </a>
@@ -298,7 +307,7 @@ function MobileHighEndCarousel({ countdown }: { countdown: ReturnType<typeof use
             {CARDS.map(({ bg, shadow, Component }, i) => (
               <div
                 key={i}
-                className={`relative w-[85vw] max-w-sm shrink-0 overflow-hidden rounded-3xl ${bg} p-8 text-white shadow-xl ${shadow}`}
+                className={`relative flex w-[85vw] max-w-sm shrink-0 flex-col overflow-hidden rounded-3xl ${bg} p-8 text-white shadow-xl ${shadow}`}
               >
                 {renderCard(Component, countdown)}
               </div>
@@ -333,7 +342,7 @@ function MobileLowEndCarousel({ countdown }: { countdown: ReturnType<typeof useO
         {CARDS.map(({ bg, shadow, Component }, i) => (
           <div
             key={i}
-            className={`relative w-[85vw] max-w-sm shrink-0 snap-center overflow-hidden rounded-3xl ${bg} p-8 text-white shadow-xl ${shadow} will-change-transform`}
+            className={`relative flex w-[85vw] max-w-sm shrink-0 snap-center flex-col overflow-hidden rounded-3xl ${bg} p-8 text-white shadow-xl ${shadow} will-change-transform`}
           >
             {renderCard(Component, countdown)}
           </div>
@@ -382,7 +391,7 @@ export function Offers() {
             <motion.div
               key={i}
               variants={cardVariantsDesktop}
-              className={`relative overflow-hidden rounded-3xl ${bg} p-8 text-white shadow-xl ${shadow} transition-transform duration-300 hover:-translate-y-1.5`}
+              className={`relative flex flex-col overflow-hidden rounded-3xl ${bg} p-8 text-white shadow-xl ${shadow} transition-transform duration-300 hover:-translate-y-1.5`}
             >
               {renderCard(Component, countdown)}
             </motion.div>
