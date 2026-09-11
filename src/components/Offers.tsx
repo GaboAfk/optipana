@@ -234,6 +234,7 @@ function renderCard(Component: (typeof CARDS)[number]["Component"], countdown: R
 
 function MobileHighEndCarousel({ countdown }: { countdown: ReturnType<typeof useOfferCountdown> }) {
   const mobileScrollRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
 
   const { scrollYProgress } = useScroll({
     target: mobileScrollRef,
@@ -242,44 +243,50 @@ function MobileHighEndCarousel({ countdown }: { countdown: ReturnType<typeof use
 
   const x = useTransform(scrollYProgress, [0, 1], ["0%", "-66.7%"]);
 
-  // Swipe horizontal manual → mueve el scroll vertical del contenedor
+  // Swipe horizontal en mobile → mueve el scroll de la página (y con él, el carrusel).
+  // El swipe vertical se deja al scroll nativo para no bloquear la navegación.
   useEffect(() => {
     const container = mobileScrollRef.current;
     if (!container) return;
+    const sticky = container.firstElementChild as HTMLElement | null;
+    if (!sticky) return;
 
-    let touchStartX = 0;
-    let touchStartScroll = 0;
-    let isHorizontal = false;
-    let isVertical = false;
+    let startX = 0;
+    let startY = 0;
+    let startScroll = 0;
+    let sectionTop = 0;
+    let axis: "x" | "y" | null = null;
 
     const onTouchStart = (e: TouchEvent) => {
-      touchStartX = e.touches[0].clientX;
-      touchStartScroll = container.scrollTop;
-      isHorizontal = false;
-      isVertical = false;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      startScroll = window.scrollY;
+      sectionTop = container.getBoundingClientRect().top + window.scrollY;
+      axis = null;
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      const dx = e.touches[0].clientX - touchStartX;
-      const maxV = container.scrollHeight - window.innerHeight;
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
 
-      if (!isHorizontal && !isVertical) {
-        if (Math.abs(dx) > 10) {
-          isHorizontal = true;
-        } else {
-          isVertical = true;
-        }
+      // Direction lock: decide el eje dominante una sola vez
+      if (!axis) {
+        if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+        axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
       }
 
-      if (isHorizontal) {
+      if (axis === "x") {
         e.preventDefault();
-        const deltaScroll = -(dx / window.innerWidth) * maxV * 0.5;
-        container.scrollTop = touchStartScroll + deltaScroll;
+        const maxV = container.scrollHeight - window.innerHeight;
+        // 1:1 — las cards recorren los mismos px que el dedo.
+        // El track se traslada -66.7% de su ancho a lo largo de todo el rango de scroll.
+        const travel = (trackRef.current?.offsetWidth || window.innerWidth) * 0.667;
+        const delta = -(dx / travel) * maxV;
+        const next = Math.min(sectionTop + maxV, Math.max(sectionTop, startScroll + delta));
+        // "instant" evita que html { scroll-behavior: smooth } anime cada paso del swipe
+        window.scrollTo({ top: next, behavior: "instant" });
       }
     };
-
-    const sticky = container.firstElementChild as HTMLElement;
-    if (!sticky) return;
 
     sticky.addEventListener("touchstart", onTouchStart, { passive: true });
     sticky.addEventListener("touchmove", onTouchMove, { passive: false });
@@ -291,7 +298,7 @@ function MobileHighEndCarousel({ countdown }: { countdown: ReturnType<typeof use
 
   return (
     <div ref={mobileScrollRef} className="relative h-[250vh] md:hidden">
-      <div className="sticky top-0 flex h-screen flex-col overflow-hidden">
+      <div className="sticky top-0 flex h-screen touch-pan-y flex-col overflow-hidden">
         <div className="pt-16 text-center">
           <span className="inline-flex items-center gap-2 rounded-full bg-brand-orange px-5 py-2 text-xs font-bold uppercase tracking-widest text-white">
             <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-white" />
@@ -301,6 +308,7 @@ function MobileHighEndCarousel({ countdown }: { countdown: ReturnType<typeof use
 
         <div className="flex flex-1 items-center overflow-hidden">
           <motion.div
+            ref={trackRef}
             style={{ x }}
             className="flex gap-5 pl-4 pr-4 will-change-transform"
           >

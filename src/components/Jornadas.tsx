@@ -55,7 +55,7 @@ export function Jornadas() {
   return (
     <section
       id="jornadas"
-      className="relative overflow-hidden bg-gradient-to-br from-brand-purple to-purple-900 py-16 text-white md:py-24"
+      className="relative -scroll-mt-15 overflow-hidden bg-gradient-to-br from-brand-purple to-purple-900 py-16 text-white md:py-24"
     >
       {/* Video de fondo — loop ping-pong (forward + reverse), WebM ligero */}
       <video

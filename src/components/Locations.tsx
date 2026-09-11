@@ -7,10 +7,10 @@ import { motion } from "framer-motion";
 
 export function Locations() {
   return (
-    <section id="locales" className="relative overflow-hidden bg-white py-16 md:py-24">
+    <section className="relative overflow-hidden bg-white py-16 md:py-24">
       <div className="pointer-events-none absolute -left-24 bottom-24 h-72 w-72 rounded-full bg-brand-orange/10 blur-2xl" />
 
-      <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
+      <div id="locales" className="relative mx-auto max-w-7xl px-5 sm:px-8">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}

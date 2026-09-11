@@ -24,11 +24,11 @@ const FEATURES = [
 
 export function About() {
   return (
-    <section id="nosotros" className="relative overflow-hidden bg-brand-bg py-16 md:py-24">
+    <section className="relative overflow-hidden bg-brand-bg py-16 md:py-24">
       <div className="pointer-events-none absolute -left-24 top-24 h-72 w-72 rounded-full bg-brand-orange/10 blur-2xl" />
       <div className="pointer-events-none absolute -right-20 bottom-10 h-80 w-80 rounded-full bg-brand-purple/10 blur-2xl" />
 
-      <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-5 sm:px-8 lg:grid-cols-2">
+      <div id="nosotros" className="relative mx-auto grid max-w-7xl items-center gap-14 px-5 sm:px-8 lg:grid-cols-2">
         {/* Texto */}
         <motion.div
           initial={{ opacity: 0, x: -40 }}

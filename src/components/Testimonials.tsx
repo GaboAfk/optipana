@@ -33,12 +33,12 @@ const TESTIMONIALS = [
 
 export function Testimonials() {
   return (
-    <section id="testimonios" className="relative overflow-hidden bg-brand-purple-light py-16 md:py-24">
+    <section className="relative overflow-hidden bg-brand-purple-light py-16 md:py-24">
       {/* Blobs decorativos */}
       <div className="pointer-events-none absolute -left-20 top-16 h-64 w-64 rounded-full bg-brand-purple/10 blur-2xl" />
       <div className="pointer-events-none absolute -bottom-20 -right-16 h-72 w-72 rounded-full bg-brand-orange/10 blur-2xl" />
 
-      <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
+      <div id="testimonios" className="relative mx-auto max-w-7xl px-5 sm:px-8">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}

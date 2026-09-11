@@ -67,30 +67,25 @@ export function Header() {
         </div>
       </div>
 
-      {/* Menú mobile */}
+      {/* Menú mobile — grid-rows anima la altura al contenido real */}
       <div
-        className={`overflow-hidden border-t border-brand-ink/5 bg-white transition-all duration-300 lg:hidden ${
-          open ? "max-h-[420px]" : "max-h-0 border-t-0"
+        className={`grid border-t border-brand-ink/5 bg-white transition-all duration-300 lg:hidden ${
+          open ? "grid-rows-[1fr] border-t" : "grid-rows-[0fr] border-t-0"
         }`}
       >
-        <nav className="flex flex-col gap-1 px-5 py-4" aria-label="Móvil">
-          {NAV_LINKS.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              onClick={() => setOpen(false)}
-              className="rounded-xl px-4 py-3 font-bold text-brand-ink/85 transition-colors hover:bg-brand-orange-soft hover:text-brand-orange"
-            >
-              {link.label}
-            </a>
-          ))}
-          <a
-            href="#locales"
-            onClick={() => setOpen(false)}
-            className="mt-2 inline-flex justify-center rounded-full bg-brand-orange px-6 py-3 text-sm font-bold text-white shadow-md shadow-brand-orange/30"
-          >
-            Visítanos
-          </a>
+        <nav className="min-h-0 overflow-hidden" aria-label="Móvil">
+          <div className="flex flex-col gap-1 px-5 py-4">
+            {NAV_LINKS.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                onClick={() => setOpen(false)}
+                className="rounded-xl px-4 py-3 font-bold text-brand-ink/85 transition-colors hover:bg-brand-orange-soft hover:text-brand-orange"
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
         </nav>
       </div>
     </header>

@@ -15,6 +15,7 @@ export function Catalog() {
   const [active, setActive] = useState<FilterId>("todos");
   const [gender, setGender] = useState<GenderFilterId>("todos");
   const [showAll, setShowAll] = useState(false);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [tryOnProduct, setTryOnProduct] = useState<Product | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -53,10 +54,10 @@ export function Catalog() {
   const resetPaging = () => setShowAll(false);
 
   return (
-    <section id="catalogo" className="relative overflow-hidden bg-white py-16 md:py-24">
+    <section className="relative overflow-hidden bg-white py-16 md:py-24">
       <div className="pointer-events-none absolute -right-28 top-40 h-72 w-72 rounded-full bg-brand-purple/10 blur-2xl" />
 
-      <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
+      <div id="catalogo" className="relative mx-auto max-w-7xl px-5 sm:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <p className="inline-flex items-center gap-2 rounded-full bg-brand-orange-soft px-4 py-1.5 text-sm font-bold text-brand-orange">
             Catálogo
@@ -104,30 +105,61 @@ export function Catalog() {
           })}
         </div>
 
-        {/* Filtros de categoría (abajo) */}
-        <div className="mt-3 flex flex-wrap justify-center gap-2.5" role="tablist" aria-label="Filtrar por categoría">
-          {CATEGORIES.map((cat) => {
-            const isActive = active === cat.id;
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => {
-                  setActive(cat.id);
-                  resetPaging();
-                }}
-                className={`rounded-full px-5 py-2.5 text-sm font-bold transition-all ${
-                  isActive
-                    ? "bg-brand-orange text-white shadow-md shadow-brand-orange/30"
-                    : "bg-brand-bg text-brand-ink/70 hover:bg-brand-orange-soft hover:text-brand-orange"
-                }`}
-              >
-                {cat.label}
-              </button>
-            );
-          })}
+        {/* Filtros de categoría (abajo) — colapsables en mobile */}
+        {/* Botón "Más filtros" — solo mobile */}
+        <div className="mt-3 flex justify-center md:hidden">
+          <button
+            type="button"
+            onClick={() => setShowMoreFilters((v) => !v)}
+            className="inline-flex items-center gap-1.5 rounded-full bg-brand-bg px-5 py-2.5 text-sm font-bold text-brand-ink/70 transition-colors hover:bg-brand-orange-soft hover:text-brand-orange"
+          >
+            {showMoreFilters ? "Menos filtros" : "Más filtros"}
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`h-3.5 w-3.5 transition-transform ${showMoreFilters ? "rotate-180" : ""}`}
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Contenedor colapsable: grid-rows anima la altura al contenido real */}
+        <div
+          className={`grid transition-all duration-300 md:grid md:grid-rows-[1fr] ${
+            showMoreFilters ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          }`}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div className="mt-3 flex flex-wrap justify-center gap-2.5" role="tablist" aria-label="Filtrar por categoría">
+              {CATEGORIES.map((cat) => {
+                const isActive = active === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => {
+                      setActive(cat.id);
+                      resetPaging();
+                    }}
+                    className={`rounded-full px-5 py-2.5 text-sm font-bold transition-all ${
+                      isActive
+                        ? "bg-brand-orange text-white shadow-md shadow-brand-orange/30"
+                        : "bg-brand-bg text-brand-ink/70 hover:bg-brand-orange-soft hover:text-brand-orange"
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Grid de productos */}
