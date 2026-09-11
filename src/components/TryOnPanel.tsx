@@ -1160,7 +1160,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
               </div>
             ) : (
               <div className="space-y-3">
-                {/* Área de recorte interactiva */}
+                {/* Área de recorte interactiva — con margen lateral en mobile para permitir scroll del panel */}
                 <div
                   ref={cropRef}
                   data-crop-area
@@ -1172,7 +1172,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
                   onTouchStart={onTouchStartCrop}
                   onTouchMove={onTouchMoveCrop}
                   onTouchEnd={onTouchEndCrop}
-                  className="relative mx-auto aspect-square w-full max-w-[320px] cursor-grab touch-none select-none overflow-hidden rounded-2xl bg-brand-bg ring-1 ring-brand-ink/10 active:cursor-grabbing"
+                  className="relative mx-auto aspect-square w-full max-w-[300px] cursor-grab touch-none select-none overflow-hidden rounded-2xl bg-brand-bg ring-1 ring-brand-ink/10 active:cursor-grabbing md:max-w-[320px]"
                 >
                   {imgEl && (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -1382,18 +1382,18 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
                   </button>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-stretch gap-3">
                 <a
                   href={resultUrl}
                   download="optipana-tryon.png"
-                  className="flex-1 rounded-full bg-brand-purple px-6 py-3 text-center text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-brand-purple-dark"
+                  className="flex flex-1 items-center justify-center rounded-full bg-brand-purple px-6 py-3 text-center text-sm font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-brand-purple-dark"
                 >
                   Descargar
                 </a>
                 <button
                   type="button"
                   onClick={() => void handleSend()}
-                  className="flex-1 rounded-full bg-brand-bg px-6 py-3 text-sm font-bold text-brand-ink/70 transition-all hover:bg-brand-ink/5"
+                  className="flex flex-1 items-center justify-center rounded-full bg-brand-bg px-6 py-3 text-center text-sm font-bold text-brand-ink/70 transition-all hover:bg-brand-ink/5"
                 >
                   Volver a generar
                 </button>
