@@ -842,7 +842,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
             className="flex w-full items-center justify-between px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-brand-ink/60 md:hidden"
           >
             <span className="inline-flex items-center gap-2">
-              Listado de lentes
+              Otros estilos
               <span className="rounded-full bg-brand-orange/10 px-2 py-0.5 text-[10px] text-brand-orange">
                 {displayProducts.length}
               </span>
@@ -1282,7 +1282,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
                   </button>
                 </div>
               </div>
-              <div className="flex gap-3">
+              <div className="flex items-center gap-3">
                 <a
                   href={resultUrl}
                   download="optipana-tryon.png"
