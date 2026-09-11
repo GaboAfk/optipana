@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "units": "meters",
+  "dimensionsEstimated": true,
+  "models": [
+    {
+      "id": "209833317-orange",
+      "productId": 8,
+      "name": "Oversize Naranja",
+      "url": "/glasses_models/209833317-orange.glb",
+      "referenceImage": "/glasses_catalog/209833317-1-orange.jpg",
+      "preview": "/glasses_models/209833317-orange-preview.svg",
+      "meshes": 11,
+      "triangles": 16638,
+      "estimatedBoundsMm": [
+        154.4,
+        62.35,
+        145.15
+      ],
+      "bytes": 412204,
+      "validation": {
+        "errors": 0,
+        "warnings": 0
+      }
+    },
+    {
+      "id": "209833300-red",
+      "productId": 6,
+      "name": "Rectangular Rubí",
+      "url": "/glasses_models/209833300-red.glb",
+      "referenceImage": "/glasses_catalog/209833300-1-red.jpg",
+      "preview": "/glasses_models/209833300-red-preview.svg",
+      "meshes": 11,
+      "triangles": 14930,
+      "estimatedBoundsMm": [
+        143.44,
+        41.76,
+        144
+      ],
+      "bytes": 377240,
+      "validation": {
+        "errors": 0,
+        "warnings": 0
+      }
+    }
+  ]
+}
