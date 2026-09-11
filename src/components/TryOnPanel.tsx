@@ -187,6 +187,8 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
   // Mobile: la lista de lentes se minimiza al hacer scroll hacia abajo
   const [listCollapsed, setListCollapsed] = useState(false);
   const lastScrollTopRef = useRef(0);
+  // Recuerda si la foto vino de la cámara o de un archivo
+  const [photoSource, setPhotoSource] = useState<"camera" | "file" | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const cropRef = useRef<HTMLDivElement>(null);
@@ -219,11 +221,12 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        const { dataUrl, savedScale, savedOffset } = JSON.parse(saved);
+        const { dataUrl, savedScale, savedOffset, savedSource } = JSON.parse(saved);
         if (dataUrl) {
           setImgUrl(dataUrl);
           setScale(savedScale || 1);
           setOffset(savedOffset || { x: 0, y: 0 });
+          if (savedSource) setPhotoSource(savedSource);
           
           const img = new Image();
           img.onload = () => setImgEl(img);
@@ -339,7 +342,8 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
           dataUrl: imgUrl,
           savedScale: scale,
-          savedOffset: offset
+          savedOffset: offset,
+          savedSource: photoSource
         }));
       } catch (e) {
         console.error("Error saving zoom state:", e);
@@ -347,7 +351,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
     }, 500); // 500ms de debounce
     
     return () => clearTimeout(timeoutId);
-  }, [scale, offset, imgUrl]);
+  }, [scale, offset, imgUrl, photoSource]);
 
   // Bloquea el scroll del body cuando el panel está abierto
   useEffect(() => {
@@ -388,12 +392,13 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    loadFile(file);
+    loadFile(file, "file");
     // Reset para poder seleccionar el mismo archivo otra vez
     e.target.value = "";
   };
 
-  const loadFile = (file: File) => {
+  const loadFile = (file: File, source: "camera" | "file" = "file") => {
+    setPhotoSource(source);
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string;
@@ -413,7 +418,8 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
           localStorage.setItem(STORAGE_KEY, JSON.stringify({
             dataUrl,
             savedScale: 1,
-            savedOffset: { x: 0, y: 0 }
+            savedOffset: { x: 0, y: 0 },
+            savedSource: source
           }));
         } catch (e) {
           console.error("Error saving image to localStorage:", e);
@@ -444,6 +450,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
     }
     stopCamera();
     setCameraError(null);
+    if (window.matchMedia("(max-width: 767px)").matches) setListCollapsed(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: mode, width: { ideal: 1280 }, height: { ideal: 1280 } },
@@ -496,7 +503,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
     ctx.drawImage(video, 0, 0);
     canvas.toBlob((blob) => {
       if (!blob) return;
-      loadFile(new File([blob], "camera.jpg", { type: "image/jpeg" }));
+      loadFile(new File([blob], "camera.jpg", { type: "image/jpeg" }), "camera");
       stopCamera();
     }, "image/jpeg", 0.92);
   };
@@ -511,6 +518,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
     setErrorMsg("");
     setScale(1);
     setOffset({ x: 0, y: 0 });
+    setPhotoSource(null);
   };
 
   // --- Pan (mouse + touch) ---
@@ -1139,7 +1147,10 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
                   >
                     <button
                       type="button"
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => {
+                        if (photoSource === "camera") startCamera();
+                        else fileInputRef.current?.click();
+                      }}
                       aria-label="Cambiar foto"
                       title="Cambiar foto"
                       className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur transition-colors hover:bg-black/70"
