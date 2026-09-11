@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { products, type Category, type Gender, type Product } from "@/data/products";
 import { CloseIcon } from "./icons";
+import { waLink } from "@/lib/site";
 
 type TryOnPanelProps = {
   product: Product | null;
@@ -147,6 +149,9 @@ const CROP_SIZE = 320; // tamaño del área de recorte en px
 // Clave para localStorage
 const STORAGE_KEY = "optipana-tryon-image";
 
+// TODO(dev): poner en false (o eliminar) antes de producción. Evita llamar a la IA mientras se desarrolla.
+const DEV_SKIP_AI = true;
+
 export function TryOnPanel({ product, onClose, onProductChange, activeCategory, activeGender }: TryOnPanelProps) {
   const [showAdditionalProducts, setShowAdditionalProducts] = useState(false);
   
@@ -174,15 +179,21 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
   const [status, setStatus] = useState<Status>("idle");
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
-  const [cropPreview, setCropPreview] = useState<string | null>(null);
   // Descripción del producto generada automáticamente por IA (cuando no hay product.prompt)
   const [autoDescription, setAutoDescription] = useState<string | null>(null);
   const [describing, setDescribing] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<ModelId>("google/gemini-2.5-flash-image");
+  const selectedModel: ModelId = "google/gemini-2.5-flash-image";
   const [showHoverImg, setShowHoverImg] = useState(false);
+  // Mobile: la lista de lentes se minimiza al hacer scroll hacia abajo
+  const [listCollapsed, setListCollapsed] = useState(false);
+  const lastScrollTopRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const cropRef = useRef<HTMLDivElement>(null);
+  const sendButtonRef = useRef<HTMLButtonElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+  // Marca que la foto fue cargada por el usuario (no restaurada) para hacer scroll al paso 2
+  const justLoadedRef = useRef(false);
   // Cámara en vivo (getUserMedia)
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -229,12 +240,15 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
     setStatus("idle");
     setResultUrl(null);
     setErrorMsg("");
-    setCropPreview(null);
     setAutoDescription(null);
     setDescribing(false);
     setShowAdditionalProducts(false);
     setShowHoverImg(false);
     setIsDragging(false);
+    if (!product) {
+      setListCollapsed(false);
+      lastScrollTopRef.current = 0;
+    }
   }, [product]);
 
   // Mientras el panel está cerrado, se mantiene fuera de pantalla para que
@@ -367,7 +381,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
   // Limpia URLs temporales
   useEffect(() => {
     return () => {
-      if (imgUrl) URL.revokeObjectURL(imgUrl);
+      if (imgUrl && imgUrl.startsWith("blob:")) URL.revokeObjectURL(imgUrl);
     };
   }, [imgUrl]);
 
@@ -380,30 +394,38 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
   };
 
   const loadFile = (file: File) => {
-    if (imgUrl) URL.revokeObjectURL(imgUrl);
-    const url = URL.createObjectURL(file);
-    setImgUrl(url);
-    setStatus("idle");
-    setResultUrl(null);
-    setErrorMsg("");
-    setScale(1);
-    setOffset({ x: 0, y: 0 });
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setImgUrl(dataUrl);
+      setStatus("idle");
+      setResultUrl(null);
+      setErrorMsg("");
+      setScale(1);
+      setOffset({ x: 0, y: 0 });
 
-    const img = new Image();
-    img.onload = () => {
-      setImgEl(img);
-      // Guardar en localStorage
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
-          dataUrl: url,
-          savedScale: 1,
-          savedOffset: { x: 0, y: 0 }
-        }));
-      } catch (e) {
-        console.error("Error saving image to localStorage:", e);
-      }
+      const img = new Image();
+      img.onload = () => {
+        justLoadedRef.current = true;
+        setImgEl(img);
+        // Guardar en localStorage (data URL persiste entre sesiones)
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            dataUrl,
+            savedScale: 1,
+            savedOffset: { x: 0, y: 0 }
+          }));
+        } catch (e) {
+          console.error("Error saving image to localStorage:", e);
+        }
+      };
+      img.src = dataUrl;
     };
-    img.src = url;
+    reader.onerror = () => {
+      setErrorMsg("No se pudo leer el archivo de imagen.");
+      setStatus("error");
+    };
+    reader.readAsDataURL(file);
   };
 
   // --- Cámara en vivo ---
@@ -482,13 +504,11 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
   // Limpiar la imagen guardada
   const handleClearImage = () => {
     localStorage.removeItem(STORAGE_KEY);
-    if (imgUrl) URL.revokeObjectURL(imgUrl);
     setImgUrl(null);
     setImgEl(null);
     setStatus("idle");
     setResultUrl(null);
     setErrorMsg("");
-    setCropPreview(null);
     setScale(1);
     setOffset({ x: 0, y: 0 });
   };
@@ -626,38 +646,35 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
     return { data: base64, mime };
   }, [imgEl, scale, offset]);
 
-  // Paso 1: Recortar — genera el preview de lo que se enviará
-  const handleCrop = () => {
-    if (!imgEl) return;
+  // Recorta la foto con el encuadre actual y la envía junto a la imagen del catálogo a la IA
+  const handleSend = useCallback(async () => {
+    if (!imgEl || !product) return;
+    if (!window.puter) {
+      setErrorMsg("El servicio de IA aún se está cargando. Intenta en unos segundos.");
+      setStatus("error");
+      return;
+    }
+
     const cropped = cropImage();
     if (!cropped) {
       setErrorMsg("No se pudo procesar la imagen.");
       setStatus("error");
       return;
     }
-    setCropPreview(`data:${cropped.mime};base64,${cropped.data}`);
-    setStatus("idle");
-    setErrorMsg("");
-    setResultUrl(null);
-  };
-
-  // Paso 2: Mandar — envía el recorte de la cara + la imagen real del catálogo a la IA
-  const handleSend = async () => {
-    if (!cropPreview || !window.puter) {
-      if (!window.puter) {
-        setErrorMsg("El servicio de IA aún se está cargando. Intenta en unos segundos.");
-        setStatus("error");
-      }
-      return;
-    }
-
-    // Extraer base64 del data-URI del recorte del usuario
-    const [meta, base64User] = cropPreview.split(",");
-    const mimeUser = meta.match(/data:(.*?);/)?.[1] ?? "image/jpeg";
+    const base64User = cropped.data;
+    const mimeUser = cropped.mime;
 
     setStatus("loading");
     setErrorMsg("");
     setResultUrl(null);
+
+    // TODO(dev): quitar antes de producción — no llama a la IA, solo muestra el recorte
+    if (DEV_SKIP_AI) {
+      console.log("[DEV] Foto recortada enviada (simulado)", { mime: mimeUser, bytes: Math.round((base64User.length * 3) / 4) });
+      setResultUrl(`data:${mimeUser};base64,${base64User}`);
+      setStatus("done");
+      return;
+    }
 
     try {
       // Cargar la imagen del catálogo y convertirla a base64
@@ -696,7 +713,47 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
       );
       setStatus("error");
     }
+  }, [imgEl, product, cropImage, selectedModel]);
+
+  // Al subir/tomar la foto: en mobile se minimiza la lista (para dejar ver el botón)
+  // y se lleva al usuario al paso 2 (ajustar)
+  useEffect(() => {
+    if (!justLoadedRef.current || !imgEl) return;
+    justLoadedRef.current = false;
+    if (window.matchMedia("(max-width: 767px)").matches) setListCollapsed(true);
+    // Scroll mínimo: solo lo justo para que el botón "Recortar y probar" quede visible
+    const timer = setTimeout(() => {
+      sendButtonRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [imgEl]);
+
+  // Compartir el resultado: Web Share API con la imagen; si no se soporta, WhatsApp con texto
+  const handleShare = async () => {
+    if (!resultUrl || !product) return;
+    const text = `Mira cómo me quedan los lentes "${product.name}" de OptiPana`;
+    try {
+      const blob = await (await fetch(resultUrl)).blob();
+      const file = new File([blob], "optipana-tryon.png", { type: blob.type || "image/png" });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], text });
+        return;
+      }
+    } catch (err) {
+      // Cancelado por el usuario u otro error de share: no hacer fallback ruidoso
+      if (err instanceof DOMException && err.name === "AbortError") return;
+    }
+    window.open(waLink(text), "_blank", "noopener,noreferrer");
   };
+
+  // Al terminar (resultado o error), hacer scroll hasta el resultado
+  useEffect(() => {
+    if (status !== "done" && status !== "error") return;
+    const timer = setTimeout(() => {
+      resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [status, resultUrl]);
 
   if (!product) return null;
 
@@ -722,6 +779,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
           if (target.closest("[data-product-list]")) return;
           if (target.closest("[data-crop-area]")) return;
           if (target.closest("[data-zoom-controls]")) return;
+          if (target.closest("[data-lens-picker]")) return;
           setIsDragging(true);
           panelDragRef.current = {
             startX: e.touches[0].clientX,
@@ -766,9 +824,42 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
         aria-label="Probador virtual"
       >
         {/* Lista de productos - Mobile (arriba) / Desktop (izquierda) */}
-        <div className="md:w-64 border-b md:border-b-0 md:border-r border-brand-ink/10 flex flex-col bg-brand-bg/50 flex-shrink-0 h-auto md:h-full">
+        {/* En mobile se minimiza a una barra al hacer scroll hacia abajo o al subir la foto; se expande al tocarla o al subir */}
+        <div className="flex flex-shrink-0 flex-col border-b border-brand-ink/10 bg-brand-bg/50 md:h-full md:w-64 md:border-b-0 md:border-r">
+          {/* Barra minimizada — solo mobile */}
+          <button
+            type="button"
+            onClick={() => setListCollapsed((v) => !v)}
+            aria-expanded={!listCollapsed}
+            className="flex w-full items-center justify-between px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-brand-ink/60 md:hidden"
+          >
+            <span className="inline-flex items-center gap-2">
+              Listado de lentes
+              <span className="rounded-full bg-brand-orange/10 px-2 py-0.5 text-[10px] text-brand-orange">
+                {displayProducts.length}
+              </span>
+            </span>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`h-3.5 w-3.5 transition-transform ${listCollapsed ? "" : "rotate-180"}`}
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+
+          <div
+            className={`grid transition-[grid-template-rows] duration-300 md:flex md:min-h-0 md:flex-1 md:flex-col ${
+              listCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]"
+            }`}
+          >
           {/* Lista horizontal en mobile, vertical en desktop */}
-          <div className={`p-4 ${!showAdditionalProducts && additionalProducts.length > 0 ? 'md:pb-16' : ''} flex-shrink-0 md:flex-1 md:overflow-y-auto`}>
+          <div className="min-h-0 overflow-hidden md:flex md:min-h-full md:flex-1 md:flex-col md:overflow-y-auto">
+          <div className={`p-4 ${!showAdditionalProducts && additionalProducts.length > 0 ? 'md:pb-16' : ''}`}>
             {/* Título solo en desktop */}
             <h4 className="hidden md:block text-xs font-bold uppercase tracking-wide text-brand-ink/40 mb-3">
               Cambiar lente
@@ -830,6 +921,8 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
               </button>
             )}
           </div>
+          </div>
+          </div>
         </div>
 
         {/* Columna derecha - Contenido principal */}
@@ -859,14 +952,30 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
           </div>
 
           {/* Contenido scrolleable */}
-          <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-6">
+          <div
+            className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-6"
+            onScroll={(e) => {
+              if (window.matchMedia("(min-width: 768px)").matches) return;
+              const el = e.currentTarget;
+              const top = el.scrollTop;
+              const delta = top - lastScrollTopRef.current;
+              // Ignorar micro-movimientos
+              if (Math.abs(delta) < 6) return;
+              // Se minimiza al bajar; solo se vuelve a abrir al llegar al tope del contenido
+              if (delta > 0 && top > 40) setListCollapsed(true);
+              else if (top <= 2) setListCollapsed(false);
+              lastScrollTopRef.current = top;
+            }}
+          >
           {/* Paso 1: Subir foto */}
           <div className="space-y-4">
             <h3 className="font-display text-lg font-bold text-brand-ink">
-              1. Sube tu foto frontal
+              {imgEl ? "2. Ajusta tu foto" : "1. Sube tu foto frontal"}
             </h3>
             <p className="text-sm text-brand-ink/60">
-              Usa una foto donde se vea tu cara de frente, bien iluminada y sin lentes puestos.
+              {imgEl
+                ? "Arrastra y haz zoom para que tu cara quede centrada dentro del marco."
+                : "Usa una foto donde se vea tu cara de frente, bien iluminada y sin lentes puestos."}
             </p>
 
             <input
@@ -1020,6 +1129,39 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
                   <div className="pointer-events-none absolute right-2 top-2 h-4 w-4 border-r-2 border-t-2 border-brand-orange" />
                   <div className="pointer-events-none absolute left-2 bottom-2 h-4 w-4 border-l-2 border-b-2 border-brand-orange" />
                   <div className="pointer-events-none absolute right-2 bottom-2 h-4 w-4 border-r-2 border-b-2 border-brand-orange" />
+
+                  {/* Acciones: cambiar foto / limpiar (esquina superior derecha) */}
+                  <div
+                    data-zoom-controls
+                    className="absolute right-3 top-3 flex gap-2"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      aria-label="Cambiar foto"
+                      title="Cambiar foto"
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur transition-colors hover:bg-black/70"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4.5 w-4.5">
+                        <path d="M4 4v6h6M20 20v-6h-6" />
+                        <path d="M20 10A8 8 0 006 5.3M4 14a8 8 0 0014 4.7" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearImage}
+                      aria-label="Limpiar foto"
+                      title="Limpiar foto"
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur transition-colors hover:bg-red-600"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4.5 w-4.5">
+                        <path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                        <path d="M10 11v6M14 11v6" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Controles de zoom */}
@@ -1063,93 +1205,71 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
                   </button>
                 </div>
 
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs text-brand-ink/40">
-                    Arrastra para mover · Usa la rueda o los botones para zoom
-                  </p>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="shrink-0 rounded-full bg-brand-bg px-3 py-2 text-xs font-bold text-brand-ink/70 transition-colors hover:bg-brand-ink/10 md:px-4"
-                    >
-                      Cambiar foto
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleClearImage}
-                      className="shrink-0 rounded-full bg-red-50 px-3 py-2 text-xs font-bold text-red-600 transition-colors hover:bg-red-100 md:px-4"
-                    >
-                      Limpiar
-                    </button>
-                  </div>
-                </div>
+                <p className="text-xs text-brand-ink/40">
+                  Arrastra para mover · Usa la rueda o los botones para zoom
+                </p>
               </div>
             )}
           </div>
 
-          {/* Paso 2: Recortar y mandar */}
+          {/* Botón final: recorta con el encuadre actual y envía a la IA */}
           {imgEl && (
-            <div className="mt-8 space-y-4">
-              <h3 className="font-display text-lg font-bold text-brand-ink">
-                2. Recorta y prueba
-              </h3>
-              <p className="text-sm text-brand-ink/60">
-                Ajusta la foto para que tu cara quede centrada. Luego recorta y envía.
-              </p>
-
-              {/* Botón Recortar */}
-              <button
-                type="button"
-                onClick={handleCrop}
-                className="w-full rounded-full bg-brand-purple px-6 py-3.5 text-sm font-bold text-white shadow-md shadow-brand-purple/30 transition-all hover:-translate-y-0.5 hover:bg-brand-purple-dark"
-              >
-                Recortar
-              </button>
-
-              {/* Preview del recorte + Botón Mandar */}
-              {cropPreview && (
-                <div className="space-y-3">
-                  <div className="rounded-2xl bg-brand-bg p-3">
-                    <p className="mb-2 text-xs font-bold uppercase tracking-wide text-brand-ink/40">
-                      Imagen que se enviará a la IA:
-                    </p>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={cropPreview} alt="Recorte" className="mx-auto rounded-lg ring-1 ring-brand-ink/10" style={{ maxWidth: 200 }} />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleSend}
-                    disabled={status === "loading"}
-                    className="w-full rounded-full bg-brand-orange px-6 py-3.5 text-sm font-bold text-white shadow-md shadow-brand-orange/30 transition-all hover:-translate-y-0.5 hover:bg-brand-orange-dark disabled:translate-y-0 disabled:opacity-60"
-                  >
-                    {status === "loading" ? (
-                      <span className="inline-flex items-center gap-2">
-                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
-                          <path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                        </svg>
-                        {describing ? "Analizando producto..." : "Generando..."}
-                      </span>
-                    ) : (
-                      "Mandar a IA"
-                    )}
-                  </button>
-                </div>
+            <button
+              ref={sendButtonRef}
+              type="button"
+              onClick={() => void handleSend()}
+              disabled={status === "loading"}
+              className="mt-6 w-full scroll-mb-4 rounded-full bg-brand-orange px-6 py-3.5 text-sm font-bold text-white shadow-md shadow-brand-orange/30 transition-all hover:-translate-y-0.5 hover:bg-brand-orange-dark disabled:translate-y-0 disabled:opacity-60"
+            >
+              {status === "loading" ? (
+                <span className="inline-flex items-center gap-2">
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
+                    <path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                  {describing ? "Analizando producto..." : "Generando..."}
+                </span>
+              ) : (
+                "Recortar y probar"
               )}
-            </div>
+            </button>
           )}
 
-          {/* Resultado */}
+          {/* Paso 3: Resultado */}
           {status === "done" && resultUrl && (
-            <div className="mt-8 space-y-4">
+            <div ref={resultRef} className="mt-8 scroll-mt-4 space-y-4">
               <h3 className="font-display text-lg font-bold text-brand-ink">
-                Resultado
+                3. Tu resultado
               </h3>
-              <div className="overflow-hidden rounded-2xl ring-1 ring-brand-ink/10">
+              <div className="relative overflow-hidden rounded-2xl ring-1 ring-brand-ink/10">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={resultUrl} alt="Resultado try-on" className="w-full object-cover" />
+                {/* Compartir + animación "Compartir" que aparece y se oculta hacia el botón */}
+                <div className="absolute right-3 top-3 flex items-center">
+                  <motion.span
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: [0, 1, 1, 0], x: [12, 0, 0, 12] }}
+                    transition={{ duration: 2.5, times: [0, 0.15, 0.8, 1], delay: 0.4 }}
+                    className="mr-2 whitespace-nowrap rounded-full bg-black/50 px-3 py-2 text-xs font-bold text-white backdrop-blur"
+                  >
+                    Compartir
+                  </motion.span>
+                  <button
+                    type="button"
+                    onClick={() => void handleShare()}
+                    aria-label="Compartir resultado"
+                    title="Compartir"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur transition-colors hover:bg-black/70"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4.5 w-4.5">
+                      <circle cx="18" cy="5" r="3" />
+                      <circle cx="6" cy="12" r="3" />
+                      <circle cx="18" cy="19" r="3" />
+                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                    </svg>
+                  </button>
+                </div>
               </div>
               <div className="flex gap-3">
                 <a
@@ -1161,23 +1281,50 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
                 </a>
                 <button
                   type="button"
-                  onClick={handleSend}
+                  onClick={() => void handleSend()}
                   className="flex-1 rounded-full bg-brand-bg px-6 py-3 text-sm font-bold text-brand-ink/70 transition-all hover:bg-brand-ink/5"
                 >
-                  Reintentar
+                  Volver a generar
                 </button>
+              </div>
+
+              {/* Probar otro lente — lista inferior solo en mobile (en desktop está la columna izquierda) */}
+              <div className="pt-2 md:hidden">
+                <p className="mb-3 text-xs font-bold uppercase tracking-wide text-brand-ink/40">
+                  ¿Quieres probar otro estilo?
+                </p>
+                <div data-lens-picker className="-mx-5 flex gap-3 overflow-x-auto px-5 pt-1 pb-3 scrollbar-hide">
+                  {displayProducts.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        onProductChange(p);
+                        setTimeout(() => sendButtonRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+                      }}
+                      className={`flex w-24 flex-shrink-0 flex-col items-center gap-1.5 rounded-xl bg-white p-2 text-center transition-all ${
+                        p.id === product.id ? "ring-2 ring-brand-orange shadow-sm" : "ring-1 ring-brand-ink/10"
+                      } hover:-translate-y-0.5`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={p.hoverImg ?? p.img} alt={p.name} className="h-16 w-16 rounded-lg object-cover" />
+                      <span className="line-clamp-2 text-[11px] font-bold leading-tight text-brand-ink">{p.name}</span>
+                      <span className="text-[11px] font-bold text-brand-orange">${p.price}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}
 
           {/* Error */}
           {status === "error" && (
-            <div className="mt-6 rounded-2xl bg-red-50 px-5 py-4 text-sm text-red-700">
+            <div ref={resultRef} className="mt-6 scroll-mt-4 rounded-2xl bg-red-50 px-5 py-4 text-sm text-red-700">
               <p className="font-bold">No se pudo generar la imagen</p>
               <p className="mt-1">{errorMsg}</p>
               <button
                 type="button"
-                onClick={handleSend}
+                onClick={() => void handleSend()}
                 className="mt-3 rounded-full bg-red-600 px-5 py-2 text-xs font-bold text-white transition-colors hover:bg-red-700"
               >
                 Reintentar
@@ -1190,29 +1337,6 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
             Tu foto se procesa mediante IA en la nube. No la almacenamos. Necesitarás iniciar sesión
             en Puter la primera vez que uses esta función.
           </p>
-
-          {/* Selector de modelo */}
-          <div className="mt-6 space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wide text-brand-ink/40">
-              Modelo de IA
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {MODELS.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setSelectedModel(m.id)}
-                  className={`rounded-xl px-3 py-2.5 text-xs font-bold transition-all text-left ${
-                    selectedModel === m.id
-                      ? "bg-brand-orange text-white shadow-md shadow-brand-orange/30"
-                      : "bg-brand-bg text-brand-ink/70 hover:bg-brand-ink/5"
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
         </div>
       </aside>
