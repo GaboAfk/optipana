@@ -51,6 +51,10 @@ declare global {
           text?: string;
         }>;
       };
+      auth: {
+        isSignedIn: () => boolean;
+        signIn: (options?: { attempt_temp_user_creation?: boolean; request_auth?: boolean }) => Promise<unknown>;
+      };
     };
   }
 }
@@ -150,7 +154,7 @@ const CROP_SIZE = 320; // tamaño del área de recorte en px
 const STORAGE_KEY = "optipana-tryon-image";
 
 // TODO(dev): poner en false (o eliminar) antes de producción. Evita llamar a la IA mientras se desarrolla.
-const DEV_SKIP_AI = true;
+const DEV_SKIP_AI = false;
 
 export function TryOnPanel({ product, onClose, onProductChange, activeCategory, activeGender }: TryOnPanelProps) {
   const [showAdditionalProducts, setShowAdditionalProducts] = useState(false);
@@ -189,6 +193,10 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
   const lastScrollTopRef = useRef(0);
   // Recuerda si la foto vino de la cámara o de un archivo
   const [photoSource, setPhotoSource] = useState<"camera" | "file" | null>(null);
+  // Paso de conexión con el servicio de IA (Puter) — se muestra antes de abrir el popup de login
+  const [needsConnect, setNeedsConnect] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const connectRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const cropRef = useRef<HTMLDivElement>(null);
@@ -663,6 +671,12 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
       return;
     }
 
+    // Si no hay sesión de Puter, mostrar el paso de conexión en vez de abrir el popup de golpe
+    if (!DEV_SKIP_AI && !window.puter.auth?.isSignedIn()) {
+      setNeedsConnect(true);
+      return;
+    }
+
     const cropped = cropImage();
     if (!cropped) {
       setErrorMsg("No se pudo procesar la imagen.");
@@ -675,6 +689,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
     setStatus("loading");
     setErrorMsg("");
     setResultUrl(null);
+    setNeedsConnect(false);
 
     // TODO(dev): quitar antes de producción — no llama a la IA, solo muestra el recorte
     if (DEV_SKIP_AI) {
@@ -716,12 +731,56 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
       }
     } catch (err) {
       console.error("Try-on error:", err);
+      const errStr = err instanceof Error ? err.message : JSON.stringify(err);
+      const isAuthError = /auth_canceled|Authentication canceled/i.test(errStr);
       setErrorMsg(
-        err instanceof Error ? err.message : "Ocurrió un error al generar la imagen.",
+        isAuthError
+          ? "Debes iniciar sesión en Puter para generar la imagen. Vuelve a intentarlo para abrir el login."
+          : err instanceof Error ? err.message : "Ocurrió un error al generar la imagen.",
       );
       setStatus("error");
     }
   }, [imgEl, product, cropImage, selectedModel]);
+
+  // Conectar con Puter (usuario temporal automático) y luego continuar con el envío
+  const handleConnect = useCallback(async () => {
+    if (!window.puter?.auth) {
+      setErrorMsg("El servicio de IA aún se está cargando. Intenta en unos segundos.");
+      setStatus("error");
+      return;
+    }
+    setConnecting(true);
+    setErrorMsg("");
+    try {
+      // attempt_temp_user_creation crea un usuario temporal sin pedir registro/contraseña
+      await window.puter.auth.signIn({ attempt_temp_user_creation: true });
+      setNeedsConnect(false);
+      // Ahora que hay sesión, continuar con el flujo normal
+      void handleSend();
+    } catch (err) {
+      console.error("Puter auth error:", err);
+      const errStr = err instanceof Error ? err.message : JSON.stringify(err);
+      if (/popup_blocked/i.test(errStr)) {
+        setErrorMsg("El navegador bloqueó la ventana de conexión. Permite popups para este sitio e intenta de nuevo.");
+      } else if (/auth_window_closed|auth_canceled|Authentication canceled/i.test(errStr)) {
+        setErrorMsg("Cancelaste la conexión. Es necesario iniciar sesión en Puter para generar la imagen. Toca el botón para intentarlo de nuevo.");
+      } else {
+        setErrorMsg("No se pudo conectar con el servicio. Intenta de nuevo.");
+      }
+      setStatus("error");
+    } finally {
+      setConnecting(false);
+    }
+  }, [handleSend]);
+
+  // Scroll automático al paso de conexión cuando aparece
+  useEffect(() => {
+    if (!needsConnect) return;
+    const timer = setTimeout(() => {
+      connectRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [needsConnect]);
 
   // Al subir/tomar la foto: en mobile se minimiza la lista (para dejar ver el botón)
   // y se lleva al usuario al paso 2 (ajustar)
@@ -1224,7 +1283,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
           </div>
 
           {/* Botón final: recorta con el encuadre actual y envía a la IA */}
-          {imgEl && (
+          {imgEl && !needsConnect && (
             <button
               ref={sendButtonRef}
               type="button"
@@ -1244,6 +1303,47 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
                 "Recortar y probar"
               )}
             </button>
+          )}
+
+          {/* Paso de conexión con el servicio de IA (Puter) */}
+          {needsConnect && (
+            <div ref={connectRef} className="mt-6 scroll-mb-4 rounded-2xl bg-brand-bg p-5 text-center ring-1 ring-brand-ink/10">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-orange/10">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-brand-orange">
+                  <path d="M12 2a10 10 0 0010 10 10 10 0 00-10 10A10 10 0 002 12 10 10 0 0112 2z" />
+                </svg>
+              </div>
+              <p className="mb-1 text-sm font-bold text-brand-ink">Conectar con el servicio de IA</p>
+              <p className="mb-4 text-xs text-brand-ink/60">
+                Para generar tu prueba virtual usamos un servicio externo seguro llamado Puter.
+                Se abrirá una ventana para conectarte — no necesitas crear cuenta, se hace automáticamente al iniciar con algún provedor como Google.
+              </p>
+              <button
+                type="button"
+                onClick={() => void handleConnect()}
+                disabled={connecting}
+                className="w-full rounded-full bg-brand-orange px-6 py-3.5 text-sm font-bold text-white shadow-md shadow-brand-orange/30 transition-all hover:-translate-y-0.5 hover:bg-brand-orange-dark disabled:translate-y-0 disabled:opacity-60"
+              >
+                {connecting ? (
+                  <span className="inline-flex items-center gap-2">
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
+                      <path d="M12 2a10 10 0 0110 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+                    Conectando...
+                  </span>
+                ) : (
+                  "Conectar y generar"
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setNeedsConnect(false)}
+                className="mt-2 text-xs text-brand-ink/40 underline hover:text-brand-ink/60"
+              >
+                Cancelar
+              </button>
+            </div>
           )}
 
           {/* Paso 3: Resultado */}
@@ -1335,7 +1435,16 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
               <p className="mt-1">{errorMsg}</p>
               <button
                 type="button"
-                onClick={() => void handleSend()}
+                onClick={() => {
+                  setStatus("idle");
+                  setErrorMsg("");
+                  // Si no hay sesión de Puter, volver al paso de conexión en vez de reintentar directo
+                  if (!DEV_SKIP_AI && window.puter?.auth && !window.puter.auth.isSignedIn()) {
+                    setNeedsConnect(true);
+                  } else {
+                    void handleSend();
+                  }
+                }}
                 className="mt-3 rounded-full bg-red-600 px-5 py-2 text-xs font-bold text-white transition-colors hover:bg-red-700"
               >
                 Reintentar
