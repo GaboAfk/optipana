@@ -33,16 +33,16 @@ export function Header() {
         scrolled ? "bg-white/60 shadow-md shadow-brand-purple/10 backdrop-blur-md" : "bg-white/30 backdrop-blur-sm"
       }`}
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-8">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-5 sm:px-8">
         <Logo />
 
-        {/* Navegación desktop */}
-        <nav className="hidden items-center gap-1 lg:flex" aria-label="Principal">
+        {/* Navegación desktop — desde xl: en lg-xl no caben logo + links + CTA */}
+        <nav className="hidden items-center gap-1 xl:flex" aria-label="Principal">
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}
               href={link.href}
-              className="rounded-full px-3.5 py-2 text-[15px] font-bold text-brand-ink/80 transition-colors hover:bg-brand-orange-soft hover:text-brand-orange"
+              className="rounded-full px-2.5 py-2 text-[15px] font-bold text-brand-ink/80 transition-colors hover:bg-brand-orange-soft hover:text-brand-orange 2xl:px-3.5"
             >
               {link.label}
             </a>
@@ -60,7 +60,7 @@ export function Header() {
             onClick={() => setOpen((v) => !v)}
             aria-label={open ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={open}
-            className="grid h-11 w-11 place-items-center rounded-full bg-brand-bg text-brand-ink lg:hidden"
+            className="grid h-11 w-11 place-items-center rounded-full bg-brand-bg text-brand-ink xl:hidden"
           >
             {open ? <CloseIcon className="h-6 w-6" /> : <MenuIcon className="h-6 w-6" />}
           </button>
@@ -69,7 +69,7 @@ export function Header() {
 
       {/* Menú mobile — grid-rows anima la altura al contenido real */}
       <div
-        className={`grid border-t border-brand-ink/5 bg-white transition-all duration-300 lg:hidden ${
+        className={`grid border-t border-brand-ink/5 bg-white transition-all duration-300 xl:hidden ${
           open ? "grid-rows-[1fr] border-t" : "grid-rows-[0fr] border-t-0"
         }`}
       >
