@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { useGesture } from "@use-gesture/react";
 import { products, type Category, type Gender, type Product } from "@/data/products";
 import { CloseIcon } from "./icons";
 import { waLink } from "@/lib/site";
@@ -143,8 +144,6 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
   // Pan & zoom state
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
-  const pinchRef = useRef<{ initialDist: number; initialScale: number } | null>(null);
 
   // Drag-to-close state (mobile)
   const [panelX, setPanelX] = useState(0);
@@ -496,96 +495,56 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
     return () => clearTimeout(t);
   }, [imgUrl, imgEl]);
 
-  // --- Pan (mouse + touch) ---
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (!imgEl) return;
-    e.preventDefault(); // Prevenir scroll cuando se interactúa con la imagen
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      baseX: offset.x,
-      baseY: offset.y,
+  // --- Pan, pinch y rueda: gestos unificados con @use-gesture ---
+  // Restringe el offset para que la imagen siempre cubra el área de recorte
+  const clampOffset = (x: number, y: number, s: number) => {
+    if (!imgEl) return { x: 0, y: 0 };
+    const maxX = Math.max(0, (imgEl.naturalWidth * s - CROP_SIZE) / 2);
+    const maxY = Math.max(0, (imgEl.naturalHeight * s - CROP_SIZE) / 2);
+    return {
+      x: Math.max(-maxX, Math.min(maxX, x)),
+      y: Math.max(-maxY, Math.min(maxY, y)),
     };
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
 
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragRef.current || !imgEl) return;
-    e.preventDefault(); // Prevenir scroll cuando se arrastra la imagen
-    const dx = e.clientX - dragRef.current.startX;
-    const dy = e.clientY - dragRef.current.startY;
-    
-    // Calcular límites del offset para que la imagen no se salga del área de recorte
-    const imgWidth = imgEl.naturalWidth * scale;
-    const imgHeight = imgEl.naturalHeight * scale;
-    const maxOffsetX = Math.max(0, (imgWidth - CROP_SIZE) / 2);
-    const maxOffsetY = Math.max(0, (imgHeight - CROP_SIZE) / 2);
-    
-    let newX = dragRef.current.baseX + dx;
-    let newY = dragRef.current.baseY + dy;
-    
-    // Restringir el offset dentro de los límites
-    newX = Math.max(-maxOffsetX, Math.min(maxOffsetX, newX));
-    newY = Math.max(-maxOffsetY, Math.min(maxOffsetY, newY));
-    
-    setOffset({
-      x: newX,
-      y: newY,
-    });
-  };
-
-  const onPointerUp = (e: React.PointerEvent) => {
-    dragRef.current = null;
-    try {
-      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch { /* noop */ }
-  };
-
-  // --- Zoom con rueda ---
-  const onWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.max(minScale, Math.min(5, scale * delta));
-    setScale(newScale);
-    
-    // Al hacer zoom, recentrar la imagen para asegurar que siempre cubra el área
-    if (newScale === minScale) {
-      setOffset({ x: 0, y: 0 });
+  // Se enlaza al área de recorte con listeners nativos (passive: false), así el
+  // preventDefault interno funciona y el pinch no pelea con el pan: la librería
+  // coordina ambos gestos y marca `pinching` mientras hay dos dedos activos.
+  useGesture(
+    {
+      onDrag: ({ pinching, cancel, first, event, delta: [dx, dy] }) => {
+        if (pinching) return cancel();
+        // Ignora el drag si empieza sobre los botones de acción de la foto
+        if (first && (event.target as HTMLElement).closest("[data-zoom-controls]")) return cancel();
+        setOffset((o) => clampOffset(o.x + dx, o.y + dy, scale));
+      },
+      onPinch: ({ origin: [ox, oy], offset: [s], first, memo }) => {
+        // memo: punto medio inicial del pinch + offset base, para que mover los
+        // dos dedos a la vez también desplace la imagen
+        if (first || !memo) memo = { ox, oy, x: offset.x, y: offset.y };
+        const newScale = Math.max(minScale, Math.min(5, s));
+        setScale(newScale);
+        if (newScale === minScale) {
+          setOffset({ x: 0, y: 0 });
+        } else {
+          setOffset(clampOffset(memo.x + ox - memo.ox, memo.y + oy - memo.oy, newScale));
+        }
+        return memo;
+      },
+      onWheel: ({ pinching, delta: [, dy] }) => {
+        if (pinching) return;
+        const newScale = Math.max(minScale, Math.min(5, scale * (dy > 0 ? 0.9 : 1.1)));
+        setScale(newScale);
+        if (newScale === minScale) setOffset({ x: 0, y: 0 });
+      },
+    },
+    {
+      target: cropRef,
+      eventOptions: { passive: false },
+      drag: { filterTaps: true },
+      pinch: { scaleBounds: { min: minScale, max: 5 }, from: () => [scale, 0] },
     }
-  };
-
-  // --- Pinch-to-zoom (touch con dos dedos) ---
-  const getPinchDistance = (touches: React.TouchList) => {
-    const dx = touches[0].clientX - touches[1].clientX;
-    const dy = touches[0].clientY - touches[1].clientY;
-    return Math.hypot(dx, dy);
-  };
-
-  const onTouchStartCrop = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && imgEl) {
-      e.preventDefault();
-      pinchRef.current = {
-        initialDist: getPinchDistance(e.touches),
-        initialScale: scale,
-      };
-    }
-  };
-
-  const onTouchMoveCrop = (e: React.TouchEvent) => {
-    if (!pinchRef.current || !imgEl || e.touches.length !== 2) return;
-    e.preventDefault();
-    const dist = getPinchDistance(e.touches);
-    const ratio = dist / pinchRef.current.initialDist;
-    const newScale = Math.max(minScale, Math.min(5, pinchRef.current.initialScale * ratio));
-    setScale(newScale);
-    if (newScale === minScale) {
-      setOffset({ x: 0, y: 0 });
-    }
-  };
-
-  const onTouchEndCrop = () => {
-    pinchRef.current = null;
-  };
+  );
 
   // --- Recorta la imagen visible del área de crop y devuelve base64 ---
   const cropImage = useCallback((): { data: string; mime: string } | null => {
@@ -1130,14 +1089,6 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
                 <div
                   ref={cropRef}
                   data-crop-area
-                  onPointerDown={onPointerDown}
-                  onPointerMove={onPointerMove}
-                  onPointerUp={onPointerUp}
-                  onPointerCancel={onPointerUp}
-                  onWheel={onWheel}
-                  onTouchStart={onTouchStartCrop}
-                  onTouchMove={onTouchMoveCrop}
-                  onTouchEnd={onTouchEndCrop}
                   className="relative mx-auto aspect-square w-full max-w-[300px] cursor-grab touch-none select-none overflow-hidden rounded-2xl bg-brand-bg ring-1 ring-brand-ink/10 active:cursor-grabbing md:max-w-[320px]"
                 >
                   {imgEl && (
@@ -1168,8 +1119,6 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
                   <div
                     data-zoom-controls
                     className="absolute right-3 top-3 flex gap-2"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
                   >
                     <button
                       type="button"
