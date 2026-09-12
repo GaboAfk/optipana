@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { ArrowRightIcon } from "./icons";
 import { PortalFieldBackground } from "./PortalFieldBackground";
@@ -9,8 +8,6 @@ import { SlidingTextButton } from "./SlidingTextButton";
 import { VideoCarousel } from "./VideoCarousel";
 import { WaveDivider } from "./WaveDivider";
 import { useLowEndDevice } from "@/lib/useLowEndDevice";
-
-const UNS = "https://images.unsplash.com";
 
 /** Interpola linealmente entre dos colores hex. */
 function interpolateColor(from: string, to: string, t: number): string {

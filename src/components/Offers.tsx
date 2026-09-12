@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, useInView, useScroll, useTransform, animate } from "framer-motion";
-import { ClockIcon, SparkleIcon, TagIcon, WalletIcon } from "./icons";
+import { ClockIcon, TagIcon, WalletIcon } from "./icons";
 import { Blob } from "./Blob";
 import { useLowEndDevice } from "@/lib/useLowEndDevice";
 

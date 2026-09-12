@@ -65,8 +65,6 @@ export const NEUFORM_BATCH_DEFAULTS = {
   brightness: 1,
 } as const;
 
-const LIGHT_PAPER = "#eef1f6";
-
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(maximum, Math.max(minimum, value));
 }

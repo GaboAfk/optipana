@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import type { MotionValue } from "framer-motion";
 
 type ImageCompareProps = {
@@ -38,12 +38,13 @@ export function ImageCompare({
   const [position, setPosition] = useState(initialPosition);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
-  const [isTouchDevice, setIsTouchDevice] = useState(false);
-
-  // Detectar touch device después del mount para evitar hydration mismatch
-  useEffect(() => {
-    setIsTouchDevice("ontouchstart" in window);
-  }, []);
+  // Detectar touch device sin hydration mismatch: el snapshot de servidor
+  // es false y el cliente corrige tras montar
+  const isTouchDevice = useSyncExternalStore(
+    () => () => {},
+    () => "ontouchstart" in window,
+    () => false,
+  );
 
   // El scroll controla la posición cuando el usuario no está arrastrando
   const scrollPos = scrollPosition as MotionValue<number> | undefined;
@@ -73,14 +74,7 @@ export function ImageCompare({
     [isTouchDevice, updatePosition],
   );
 
-  const onTouchStart = useCallback(
-    (_e: React.TouchEvent) => {
-      // En mobile no se arrastra — solo el scroll controla la barra
-      return;
-    },
-    [],
-  );
-
+  // En mobile no se arrastra — solo el scroll controla la barra
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (isDragging.current) updatePosition(e.clientX);
@@ -138,7 +132,6 @@ export function ImageCompare({
       className={`relative overflow-hidden ${className}`}
       style={{ cursor: isTouchDevice ? "default" : "ew-resize", touchAction: "pan-y", userSelect: "none" }}
       onMouseDown={onMouseDown}
-      onTouchStart={onTouchStart}
     >
       {/* After image (fondo — con lentes) */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
