@@ -29,6 +29,10 @@ body {
   @apply bg-brand-orange text-white;
 }
 
+@utility no-callout {
+  -webkit-touch-callout: none;
+}
+
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;

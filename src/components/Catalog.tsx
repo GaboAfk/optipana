@@ -219,12 +219,16 @@ function ProductCard({ product, onTryOn }: { product: (typeof products)[number];
       onTouchCancel={() => setTouched(false)}
       className={`group flex flex-col overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-brand-ink/5 transition-all duration-300 hover:-translate-y-2 hover:shadow-xl hover:shadow-brand-purple/15 ${touched ? "-translate-y-2 shadow-xl shadow-brand-purple/15" : ""}`}
     >
-      <div className="relative aspect-square overflow-hidden bg-brand-bg">
+      <div
+        className="no-callout relative aspect-square select-none overflow-hidden bg-brand-bg"
+        onContextMenu={(e) => e.preventDefault()}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={product.img}
           alt={product.name}
-          className={`h-full w-full object-cover transition-all duration-500 group-hover:scale-105 ${product.hoverImg ? "group-hover:opacity-0" : ""} ${touched ? "scale-105" : ""} ${product.hoverImg && touched ? "opacity-0" : ""}`}
+          draggable={false}
+          className={`no-callout h-full w-full object-cover transition-all duration-500 group-hover:scale-105 ${product.hoverImg ? "group-hover:opacity-0" : ""} ${touched ? "scale-105" : ""} ${product.hoverImg && touched ? "opacity-0" : ""}`}
         />
         {product.hoverImg && (
           <>
@@ -232,7 +236,8 @@ function ProductCard({ product, onTryOn }: { product: (typeof products)[number];
             <img
               src={product.hoverImg}
               alt={product.name}
-              className={`absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-500 group-hover:scale-105 group-hover:opacity-100 ${touched ? "scale-105 opacity-100" : ""}`}
+              draggable={false}
+              className={`no-callout absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-500 group-hover:scale-105 group-hover:opacity-100 ${touched ? "scale-105 opacity-100" : ""}`}
             />
           </>
         )}
@@ -258,7 +263,11 @@ function ProductCard({ product, onTryOn }: { product: (typeof products)[number];
               <button
                 type="button"
                 onClick={onTryOn}
-                className="inline-flex items-center gap-1.5 rounded-full bg-brand-orange-soft px-3 py-2.5 text-xs font-bold text-brand-orange transition-all hover:-translate-y-0.5 hover:bg-brand-orange hover:text-white"
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2.5 text-xs font-bold transition-all hover:-translate-y-0.5 hover:bg-brand-orange hover:text-white ${
+                  touched
+                    ? "-translate-y-0.5 bg-brand-orange text-white shadow-md shadow-brand-orange/30 delay-150 duration-700"
+                    : "bg-brand-orange-soft text-brand-orange duration-300"
+                }`}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
                   <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
