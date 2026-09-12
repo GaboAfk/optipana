@@ -48,6 +48,7 @@ export function Hero() {
   );
 
   return (
+    <>
     <section id="inicio" className="relative overflow-hidden bg-white pt-16 md:pt-16">
       {/* Portal Field detrás de todo el hero — cubre texto e imagen.
           En low-end se reemplaza el shader WebGL por un aura estática en
@@ -142,7 +143,8 @@ export function Hero() {
           </div>
         </div>
       </div>
-      <WaveDivider fill="#F7F7F9" />
     </section>
+    <WaveDivider fill="#F7F7F9" />
+    </>
   );
 }

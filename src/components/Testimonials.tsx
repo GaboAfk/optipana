@@ -51,6 +51,7 @@ export function Testimonials() {
   usePeekOnView(listRef);
 
   return (
+    <>
     <section className="relative overflow-hidden bg-brand-purple-light py-16 md:py-24">
       {/* Blobs decorativos */}
       <div className="pointer-events-none absolute -left-20 top-16 h-64 w-64 rounded-full bg-brand-purple/10 blur-2xl" />
@@ -113,7 +114,8 @@ export function Testimonials() {
           ))}
         </div>
       </div>
-      <WaveDivider fill="#ffffff" />
     </section>
+    <WaveDivider fill="#ffffff" />
+    </>
   );
 }

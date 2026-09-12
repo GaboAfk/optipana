@@ -53,6 +53,7 @@ const item = {
 
 export function Jornadas() {
   return (
+    <>
     <section
       id="jornadas"
       className="relative -scroll-mt-15 overflow-hidden bg-gradient-to-br from-brand-purple to-purple-900 py-16 text-white md:py-24"
@@ -152,8 +153,9 @@ export function Jornadas() {
           ))}
         </motion.div>
       </div>
-      {/* Onda inferior — transición hacia BeforeAfter (#F7F7F9) */}
-      <WaveDivider fill="#F7F7F9" />
     </section>
+    {/* Onda inferior — transición hacia BeforeAfter (#F7F7F9) */}
+    <WaveDivider fill="#F7F7F9" />
+    </>
   );
 }

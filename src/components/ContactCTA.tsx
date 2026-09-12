@@ -7,24 +7,10 @@ import { motion } from "framer-motion";
 
 export function ContactCTA() {
   return (
+    <>
+    {/* Onda superior — transición desde Locations (#ffffff) */}
+    <WaveDivider flip fill="#ffffff" />
     <section id="contacto" className="relative overflow-hidden bg-gradient-to-r from-brand-orange via-[#C2491F] to-brand-purple py-20 md:py-28">
-      {/* Onda superior — transición desde Locations (#ffffff) */}
-      <div
-        className="pointer-events-none absolute -top-px left-0 right-0 z-10 leading-none"
-        aria-hidden="true"
-      >
-        <svg
-          viewBox="0 0 1440 56"
-          className="block w-full"
-          style={{ height: 40 }}
-          preserveAspectRatio="none"
-        >
-          <path
-            fill="#ffffff"
-            d="M0,28 C360,0 720,56 1080,28 C1260,14 1380,28 1440,40 L1440,0 L0,0 Z"
-          />
-        </svg>
-      </div>
 
       {/* Decoración */}
       <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
@@ -64,7 +50,8 @@ export function ContactCTA() {
           </a>
         </div>
       </motion.div>
-      <WaveDivider fill="#2d1452" />
     </section>
+    <WaveDivider fill="#2d1452" />
+    </>
   );
 }

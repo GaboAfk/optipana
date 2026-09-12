@@ -47,6 +47,7 @@ const item = {
 
 export function Services() {
   return (
+    <>
     <section className="relative overflow-hidden bg-brand-bg py-16 md:py-24">
       <div id="servicios" className="mx-auto max-w-7xl px-5 sm:px-8">
         <motion.div
@@ -99,8 +100,9 @@ export function Services() {
           })}
         </motion.div>
       </div>
-      {/* Onda inferior — transición hacia Catalog (#ffffff) */}
-      <WaveDivider fill="#ffffff" />
     </section>
+    {/* Onda inferior — transición hacia Catalog (#ffffff) */}
+    <WaveDivider fill="#ffffff" />
+    </>
   );
 }

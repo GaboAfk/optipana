@@ -24,6 +24,7 @@ const FEATURES = [
 
 export function About() {
   return (
+    <>
     <section className="relative overflow-hidden bg-brand-bg py-16 md:py-24">
       <div className="pointer-events-none absolute -left-24 top-24 h-72 w-72 rounded-full bg-brand-orange/10 blur-2xl" />
       <div className="pointer-events-none absolute -right-20 bottom-10 h-80 w-80 rounded-full bg-brand-purple/10 blur-2xl" />
@@ -131,7 +132,8 @@ export function About() {
           </div>
         </motion.div>
       </div>
-      <WaveDivider fill="#f3ebf9" />
     </section>
+    <WaveDivider fill="#f3ebf9" />
+    </>
   );
 }
