@@ -98,8 +98,8 @@ export function BeforeAfter() {
             {/* Comparador */}
             <div ref={compareRef} className="relative overflow-hidden rounded-3xl shadow-2xl shadow-brand-purple/15">
               <ImageCompare
-                beforeSrc="/niña_sin_lentes.jpg"
-                afterSrc="/niña_con_lentes.jpg"
+                beforeSrc="/niña_sin_lentes.avif"
+                afterSrc="/niña_con_lentes.avif"
                 beforeAlt="Niña sin lentes"
                 afterAlt="Niña con lentes"
                 beforeLabel="Sin lentes"

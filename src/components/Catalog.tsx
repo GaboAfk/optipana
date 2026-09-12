@@ -228,6 +228,7 @@ function ProductCard({ product, onTryOn }: { product: (typeof products)[number];
           src={product.img}
           alt={product.name}
           draggable={false}
+          loading="lazy"
           className={`no-callout h-full w-full object-cover transition-all duration-500 group-hover:scale-105 ${product.hoverImg ? "group-hover:opacity-0" : ""} ${touched ? "scale-105" : ""} ${product.hoverImg && touched ? "opacity-0" : ""}`}
         />
         {product.hoverImg && (
@@ -237,6 +238,7 @@ function ProductCard({ product, onTryOn }: { product: (typeof products)[number];
               src={product.hoverImg}
               alt={product.name}
               draggable={false}
+              loading="lazy"
               className={`no-callout absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-500 group-hover:scale-105 group-hover:opacity-100 ${touched ? "scale-105 opacity-100" : ""}`}
             />
           </>

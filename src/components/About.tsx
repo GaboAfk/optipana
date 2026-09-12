@@ -111,7 +111,7 @@ export function About() {
           <div className="relative overflow-hidden rounded-[2.5rem] shadow-2xl shadow-brand-purple/20">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/chica_optipana.jpg"
+              src="/chica_optipana.avif"
               alt="Persona con monturas OptiPana"
               className="h-full w-full object-cover"
             />
