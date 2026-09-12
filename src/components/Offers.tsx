@@ -223,7 +223,18 @@ function MobileHighEndCarousel({ countdown }: { countdown: ReturnType<typeof use
     offset: ["start start", "end end"],
   });
 
-  const x = useTransform(scrollYProgress, [0, 1], ["0%", "-66.7%"]);
+  // Distancia real a trasladar: el borde derecho del track (incluye pr-4)
+  // debe quedar pegado al borde derecho del área visible — el contenedor con
+  // overflow-hidden, más angosto que el viewport por el padding de la sección —
+  // así la última card termina alineada igual que la primera (16px de margen).
+  const visibleWidth = () =>
+    trackRef.current?.parentElement?.clientWidth ?? window.innerWidth;
+
+  const x = useTransform(scrollYProgress, (p) => {
+    const track = trackRef.current;
+    if (!track) return 0;
+    return -Math.max(0, track.offsetWidth - visibleWidth()) * p;
+  });
 
   // Swipe horizontal en mobile → mueve el scroll de la página (y con él, el carrusel).
   // El swipe vertical se deja al scroll nativo para no bloquear la navegación.
@@ -250,18 +261,24 @@ function MobileHighEndCarousel({ countdown }: { countdown: ReturnType<typeof use
       max: container.scrollHeight - window.innerHeight,
     });
 
-    // Progreso de scroll (0-1) en el que cada card queda alineada como la primera
+    // Progreso de scroll (0-1) en el que cada card queda centrada en el área
+    // visible. La primera y la última quedan en los extremos por el límite del
+    // recorrido (no se puede trasladar más allá).
     const snapPoints = () => {
       const track = trackRef.current;
       const count = track?.children.length ?? 0;
       if (!track || count < 2) return [0, 1];
       const cardW = (track.children[0] as HTMLElement).offsetWidth;
-      const gap = parseFloat(getComputedStyle(track).columnGap) || 0;
-      const travel = track.offsetWidth * 0.667;
+      const cs = getComputedStyle(track);
+      const gap = parseFloat(cs.columnGap) || 0;
+      const padL = parseFloat(cs.paddingLeft) || 0;
+      const port = visibleWidth();
+      const travel = Math.max(1, track.offsetWidth - port);
       const step = cardW + gap;
-      return Array.from({ length: count }, (_, i) =>
-        i === count - 1 ? 1 : Math.min(1, (i * step) / travel),
-      );
+      return Array.from({ length: count }, (_, i) => {
+        const t = Math.min(travel, Math.max(0, padL + i * step - (port - cardW) / 2));
+        return t / travel;
+      });
     };
 
     const snapToNearest = () => {
@@ -326,8 +343,9 @@ function MobileHighEndCarousel({ countdown }: { countdown: ReturnType<typeof use
         e.preventDefault();
         const maxV = container.scrollHeight - window.innerHeight;
         // 1:1 — las cards recorren los mismos px que el dedo.
-        // El track se traslada -66.7% de su ancho a lo largo de todo el rango de scroll.
-        const travel = (trackRef.current?.offsetWidth || window.innerWidth) * 0.667;
+        // El track se traslada (trackW - áreaVisibleW) a lo largo del rango de scroll.
+        const track = trackRef.current;
+        const travel = track ? Math.max(0, track.offsetWidth - visibleWidth()) : window.innerWidth;
         const delta = -(dx / travel) * maxV;
         const next = Math.min(sectionTop + maxV, Math.max(sectionTop, startScroll + delta));
         // "instant" evita que html { scroll-behavior: smooth } anime cada paso del swipe
