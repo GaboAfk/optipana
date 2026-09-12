@@ -238,6 +238,11 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
           
           const img = new Image();
           img.onload = () => setImgEl(img);
+          img.onerror = () => {
+            // Data restaurada corrupta: se descarta y se vuelve a los botones iniciales
+            localStorage.removeItem(STORAGE_KEY);
+            setImgUrl(null);
+          };
           img.src = dataUrl;
         }
       }
@@ -319,6 +324,11 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
     if (!list) return;
 
     let animId: number;
+    let collapseTimer: ReturnType<typeof setTimeout> | undefined;
+    let interacted = false;
+    const onInteract = () => { interacted = true; };
+    list.addEventListener("pointerdown", onInteract);
+
     const timer = setTimeout(() => {
       const startScroll = list.scrollLeft;
       const distance = 80;
@@ -330,14 +340,21 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
         const t = Math.min((now - startTime) / duration, 1);
         const progress = Math.sin(t * Math.PI); // 0 → 1 → 0
         list.scrollLeft = startScroll + distance * progress;
-        if (t < 1) animId = requestAnimationFrame(tick);
+        if (t < 1) {
+          animId = requestAnimationFrame(tick);
+        } else if (!interacted) {
+          // Terminado el vaivén, la lista se minimiza a la barra "Otros estilos"
+          collapseTimer = setTimeout(() => setListCollapsed(true), 350);
+        }
       };
       animId = requestAnimationFrame(tick);
     }, 600);
 
     return () => {
       clearTimeout(timer);
+      clearTimeout(collapseTimer);
       cancelAnimationFrame(animId);
+      list.removeEventListener("pointerdown", onInteract);
     };
   }, [product]);
 
@@ -432,6 +449,10 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
         } catch (e) {
           console.error("Error saving image to localStorage:", e);
         }
+      };
+      img.onerror = () => {
+        // El archivo se leyó pero no decodifica: descartar para permitir reintentar
+        handleClearImage();
       };
       img.src = dataUrl;
     };
@@ -528,6 +549,17 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
     setOffset({ x: 0, y: 0 });
     setPhotoSource(null);
   };
+
+  // Red de seguridad: si imgUrl está pero la imagen no decodifica en 4s,
+  // vuelve a los botones iniciales en lugar de mostrar un espacio en blanco
+  useEffect(() => {
+    if (!imgUrl || imgEl) return;
+    const t = setTimeout(() => {
+      localStorage.removeItem(STORAGE_KEY);
+      setImgUrl(null);
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [imgUrl, imgEl]);
 
   // --- Pan (mouse + touch) ---
   const onPointerDown = (e: React.PointerEvent) => {
@@ -1012,7 +1044,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
               type="button"
               onClick={onClose}
               aria-label="Cerrar"
-              className="grid h-9 w-9 place-items-center rounded-full bg-brand-bg text-brand-ink/60 transition-colors hover:bg-brand-ink/10"
+              className="grid h-9 w-9 place-items-center rounded-full bg-brand-orange-soft text-brand-orange transition-colors hover:bg-brand-orange hover:text-white"
             >
               <CloseIcon className="h-5 w-5" />
             </button>
@@ -1037,12 +1069,12 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
           {/* Paso 1: Subir foto */}
           <div className="space-y-4">
             <h3 className="font-display text-lg font-bold text-brand-ink">
-              {imgEl ? "2. Ajusta tu foto" : "1. Sube tu foto frontal"}
+              {imgEl ? "2. Ajusta tu foto" : "1. Sube una foto o tómatela con la cámara"}
             </h3>
             <p className="text-sm text-brand-ink/60">
               {imgEl
                 ? "Arrastra y haz zoom para que tu cara quede centrada dentro del marco."
-                : "Usa una foto donde se vea tu cara de frente, bien iluminada y sin lentes puestos."}
+                : "Que se vea tu cara de frente, bien iluminada y sin lentes puestos."}
             </p>
 
             <input
@@ -1180,6 +1212,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
                       src={imgUrl!}
                       alt="Tu foto"
                       draggable={false}
+                      onError={handleClearImage}
                       className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none"
                       style={{
                         width: imgEl.naturalWidth,
