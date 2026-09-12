@@ -5,6 +5,7 @@ import { motion, useInView, useScroll, useTransform, animate } from "framer-moti
 import { ClockIcon, TagIcon, WalletIcon } from "./icons";
 import { Blob } from "./Blob";
 import { useLowEndDevice } from "@/lib/useLowEndDevice";
+import { usePeekOnView } from "@/lib/usePeekOnView";
 
 const OFFER_KEY = "optipana-oferta-fin";
 const OFFER_DAYS = 3;
@@ -413,53 +414,7 @@ function MobileLowEndCarousel({ countdown }: { countdown: ReturnType<typeof useO
   const listRef = useRef<HTMLDivElement>(null);
 
   // Al entrar en vista, "asoma" la siguiente card y regresa — sugiere que hay más
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-    let interacted = false;
-    let anim: ReturnType<typeof animate> | null = null;
-    let timer: number | undefined;
-
-    const peek = () => {
-      if (interacted || el.scrollLeft > 4) return;
-      const distance = Math.min(130, el.clientWidth * 0.32);
-      // sin snap para poder quedar a mitad de camino entre cards
-      el.style.scrollSnapType = "none";
-      anim?.stop();
-      anim = animate(0, distance, {
-        duration: 0.6,
-        ease: "easeOut",
-        onUpdate: (v) => { el.scrollLeft = v; },
-        onComplete: () => {
-          anim = animate(distance, 0, {
-            duration: 0.9,
-            ease: [0.32, 0.72, 0, 1],
-            onUpdate: (v) => { el.scrollLeft = v; },
-            onComplete: () => { el.style.scrollSnapType = ""; },
-          });
-        },
-      });
-    };
-
-    const cancel = () => {
-      interacted = true;
-      anim?.stop();
-      window.clearTimeout(timer);
-      el.style.scrollSnapType = "";
-    };
-
-    const io = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) timer = window.setTimeout(peek, 500);
-    }, { threshold: 0.5 });
-
-    io.observe(el);
-    el.addEventListener("pointerdown", cancel);
-    return () => {
-      io.disconnect();
-      cancel();
-      el.removeEventListener("pointerdown", cancel);
-    };
-  }, []);
+  usePeekOnView(listRef);
 
   return (
     <div className="md:hidden">

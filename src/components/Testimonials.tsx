@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { StarIcon } from "./icons";
 import { WaveDivider } from "./WaveDivider";
 import { motion } from "framer-motion";
+import { usePeekOnView } from "@/lib/usePeekOnView";
 
 const TESTIMONIALS = [
   {
@@ -32,6 +34,22 @@ const TESTIMONIALS = [
 ] as const;
 
 export function Testimonials() {
+  const listRef = useRef<HTMLDivElement>(null);
+  // null hasta montar: evita hydration mismatch. En mobile las cards van
+  // fijas (sin animación de entrada); en desktop conservan el fade-up.
+  const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  // En mobile, "asoma" la siguiente card al entrar en vista (sugiere scroll)
+  usePeekOnView(listRef);
+
   return (
     <section className="relative overflow-hidden bg-brand-purple-light py-16 md:py-24">
       {/* Blobs decorativos */}
@@ -58,12 +76,14 @@ export function Testimonials() {
         </motion.div>
 
         {/* Grid / carrusel en mobile */}
-        <div className="mt-12 flex snap-x snap-mandatory gap-6 overflow-x-auto pb-4 will-change-transform lg:grid lg:grid-cols-3 lg:overflow-visible lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div ref={listRef} className="mt-12 flex snap-x snap-mandatory gap-6 overflow-x-auto pb-4 will-change-transform lg:grid lg:grid-cols-3 lg:overflow-visible lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {TESTIMONIALS.map((t, i) => (
+            // key por breakpoint: al montar en desktop remonta para que corra la
+            // animación de entrada; en mobile queda estática desde el inicio
             <motion.article
-              key={t.name}
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
+              key={`${isDesktop ? "d" : "m"}-${t.name}`}
+              initial={isDesktop ? { opacity: 0, y: 40 } : false}
+              whileInView={isDesktop ? { opacity: 1, y: 0 } : undefined}
               viewport={{ once: false, amount: 0.2 }}
               transition={{ delay: i * 0.15, type: "spring" as const, stiffness: 80, damping: 16 }}
               className="flex w-[85%] shrink-0 snap-center flex-col rounded-3xl bg-white p-7 shadow-md shadow-brand-purple/10 transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl sm:w-[70%] lg:w-auto"
