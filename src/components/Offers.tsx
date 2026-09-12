@@ -392,6 +392,57 @@ function MobileHighEndCarousel({ countdown }: { countdown: ReturnType<typeof use
 }
 
 function MobileLowEndCarousel({ countdown }: { countdown: ReturnType<typeof useOfferCountdown> }) {
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Al entrar en vista, "asoma" la siguiente card y regresa — sugiere que hay más
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    let interacted = false;
+    let anim: ReturnType<typeof animate> | null = null;
+    let timer: number | undefined;
+
+    const peek = () => {
+      if (interacted || el.scrollLeft > 4) return;
+      const distance = Math.min(130, el.clientWidth * 0.32);
+      // sin snap para poder quedar a mitad de camino entre cards
+      el.style.scrollSnapType = "none";
+      anim?.stop();
+      anim = animate(0, distance, {
+        duration: 0.6,
+        ease: "easeOut",
+        onUpdate: (v) => { el.scrollLeft = v; },
+        onComplete: () => {
+          anim = animate(distance, 0, {
+            duration: 0.9,
+            ease: [0.32, 0.72, 0, 1],
+            onUpdate: (v) => { el.scrollLeft = v; },
+            onComplete: () => { el.style.scrollSnapType = ""; },
+          });
+        },
+      });
+    };
+
+    const cancel = () => {
+      interacted = true;
+      anim?.stop();
+      window.clearTimeout(timer);
+      el.style.scrollSnapType = "";
+    };
+
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) timer = window.setTimeout(peek, 500);
+    }, { threshold: 0.5 });
+
+    io.observe(el);
+    el.addEventListener("pointerdown", cancel);
+    return () => {
+      io.disconnect();
+      cancel();
+      el.removeEventListener("pointerdown", cancel);
+    };
+  }, []);
+
   return (
     <div className="md:hidden">
       <div className="pb-6 text-center">
@@ -401,7 +452,7 @@ function MobileLowEndCarousel({ countdown }: { countdown: ReturnType<typeof useO
         </span>
       </div>
 
-      <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto pb-6 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div ref={listRef} className="flex snap-x snap-mandatory gap-5 overflow-x-auto pb-6 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {CARDS.map(({ bg, shadow, Component }, i) => (
           <div
             key={i}
