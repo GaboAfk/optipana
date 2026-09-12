@@ -257,7 +257,72 @@ function MobileHighEndCarousel({ countdown }: { countdown: ReturnType<typeof use
     let sectionTop = 0;
     let axis: "x" | "y" | null = null;
 
+    // ── Snap a la card más cercana al soltar el scroll ──
+    let settleTimer: number | undefined;
+    let snapAnim: ReturnType<typeof animate> | null = null;
+    let lastY = window.scrollY;
+    let dir: 1 | -1 = 1;
+
+    const sectionRange = () => ({
+      top: container.getBoundingClientRect().top + window.scrollY,
+      max: container.scrollHeight - window.innerHeight,
+    });
+
+    // Progreso de scroll (0-1) en el que cada card queda alineada como la primera
+    const snapPoints = () => {
+      const track = trackRef.current;
+      const count = track?.children.length ?? 0;
+      if (!track || count < 2) return [0, 1];
+      const cardW = (track.children[0] as HTMLElement).offsetWidth;
+      const gap = parseFloat(getComputedStyle(track).columnGap) || 0;
+      const travel = track.offsetWidth * 0.667;
+      const step = cardW + gap;
+      return Array.from({ length: count }, (_, i) =>
+        i === count - 1 ? 1 : Math.min(1, (i * step) / travel),
+      );
+    };
+
+    const snapToNearest = () => {
+      const { top, max } = sectionRange();
+      const y = window.scrollY;
+      // Si el usuario ya salió de la sección, no hacer nada
+      if (y < top - 1 || y > top + max + 1) return;
+      const p = Math.min(1, Math.max(0, (y - top) / max));
+      const pts = snapPoints();
+      let i = 0;
+      while (i < pts.length - 2 && p > pts[i + 1]) i++;
+      const a = pts[i];
+      const b = pts[i + 1];
+      const local = (p - a) / (b - a || 1);
+      // ~30% de la siguiente card visible → completa el avance en esa dirección
+      const target = dir === 1 ? (local > 0.3 ? b : a) : (local < 0.7 ? a : b);
+      const targetY = top + target * max;
+      if (Math.abs(targetY - y) < 2) return;
+      snapAnim?.stop();
+      snapAnim = animate(y, targetY, {
+        duration: 0.45,
+        ease: [0.32, 0.72, 0, 1],
+        onUpdate: (v) => window.scrollTo({ top: v, behavior: "instant" }),
+      });
+    };
+
+    const scheduleSnap = () => {
+      window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(snapToNearest, 140);
+    };
+
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (Math.abs(y - lastY) > 1) dir = y > lastY ? 1 : -1;
+      lastY = y;
+      const { top, max } = sectionRange();
+      if (y >= top - 1 && y <= top + max + 1) scheduleSnap();
+    };
+
+    const cancelSnap = () => snapAnim?.stop();
+
     const onTouchStart = (e: TouchEvent) => {
+      cancelSnap();
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
       startScroll = window.scrollY;
@@ -290,9 +355,17 @@ function MobileHighEndCarousel({ countdown }: { countdown: ReturnType<typeof use
 
     sticky.addEventListener("touchstart", onTouchStart, { passive: true });
     sticky.addEventListener("touchmove", onTouchMove, { passive: false });
+    sticky.addEventListener("touchend", scheduleSnap, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("wheel", cancelSnap, { passive: true });
     return () => {
+      window.clearTimeout(settleTimer);
+      snapAnim?.stop();
       sticky.removeEventListener("touchstart", onTouchStart);
       sticky.removeEventListener("touchmove", onTouchMove);
+      sticky.removeEventListener("touchend", scheduleSnap);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("wheel", cancelSnap);
     };
   }, []);
 
