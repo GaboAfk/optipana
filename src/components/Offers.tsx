@@ -4,28 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { motion, useInView, useScroll, useTransform, animate } from "framer-motion";
 import { ClockIcon, SparkleIcon, TagIcon, WalletIcon } from "./icons";
 import { Blob } from "./Blob";
+import { useLowEndDevice } from "@/lib/useLowEndDevice";
 
 const OFFER_KEY = "optipana-oferta-fin";
 const OFFER_DAYS = 3;
-
-function useLowEndDevice() {
-  const [isLowEnd, setIsLowEnd] = useState(false);
-
-  useEffect(() => {
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const cores = navigator.hardwareConcurrency || 0;
-    const memory = (navigator as { deviceMemory?: number }).deviceMemory || 0;
-    // Low-end si reduce-motion, o si ambos CPU/RAM son bajos, o si alguno es muy bajo
-    setIsLowEnd(
-      reduced ||
-      (cores <= 4 && memory <= 4) ||
-      cores <= 2 ||
-      memory <= 2,
-    );
-  }, []);
-
-  return isLowEnd;
-}
 
 function useOfferCountdown() {
   const [remaining, setRemaining] = useState<number | null>(null);
