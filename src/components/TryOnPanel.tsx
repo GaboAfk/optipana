@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { products, type Category, type Gender, type Product } from "@/data/products";
 import { CloseIcon } from "./icons";
@@ -15,15 +15,6 @@ type TryOnPanelProps = {
 };
 
 type Status = "idle" | "loading" | "done" | "error";
-
-const MODELS = [
-  { id: "google/gemini-2.5-flash-image", label: "Gemini 2.5 Flash Image" },
-  { id: "google/gemini-3.1-flash-image-preview", label: "Nano Banana 2" },
-  { id: "gemini-3-pro-image-preview", label: "Nano Banana Pro" },
-  { id: "gpt-image-2", label: "GPT Image 2" },
-];
-
-type ModelId = (typeof MODELS)[number]["id"];
 
 // Declara puter en el window global
 declare global {
@@ -83,69 +74,8 @@ function imageToBase64(img: HTMLImageElement, mime = "image/jpeg", quality = 0.9
   const outMime = meta.match(/data:(.*?);/)?.[1] ?? mime;
   return { data: base64, mime: outMime };
 }
-function extractChatText(response: {
-  message?: { content?: string | Array<{ text?: string }> };
-  text?: string;
-}): string {
-  if (typeof response.text === "string") return response.text;
-  const content = response.message?.content;
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) {
-    return content.map((c) => c.text ?? "").join(" ");
-  }
-  return "";
-}
-
 function getProductReferenceImage(product: Product): string {
   return product.hoverImg ?? product.img;
-}
-
-/**
- * Genera automáticamente una descripción del producto a partir de su imagen,
- * usando puter.ai.chat() con visión (equivalente a un "image-to-prompt").
- * Se usa como fallback cuando el producto no tiene un `prompt` definido manualmente.
- */
-async function generatePromptFromImage(product: Product): Promise<string> {
-  if (!window.puter) {
-    throw new Error("El servicio de IA aún se está cargando. Intenta en unos segundos.");
-  }
-
-  const instruction =
-    "Describe this eyewear product image in vivid, detailed language suitable as a prompt for an AI image generator. " +
-    "Focus only on the glasses/sunglasses themselves: their shape, frame color and material, lens color/tint, and style. " +
-    "Do not mention the background or setting. Keep it under 60 words, written in English, third person, objective.";
-
-  const response = await window.puter.ai.chat(instruction, getProductReferenceImage(product));
-  const description = extractChatText(response).trim();
-
-  if (!description) {
-    throw new Error("No se pudo describir la imagen del producto.");
-  }
-
-  return description;
-}
-
-/** Construye el prompt final de edición a partir de una descripción del producto */
-function buildEditPrompt(description: string): string {
-  return `Edit this photo: place these sunglasses on the person's face. ${description} The sunglasses should rest naturally on the bridge of their nose, covering their eyes, with the arms going over their ears. Keep everything else in the photo exactly the same.`;
-}
-
-/** Descripción genérica de respaldo basada en los datos del producto (si la IA falla) */
-function buildFallbackDescription(product: Product): string {
-  const variantDesc: Record<string, string> = {
-    round: "round",
-    square: "square",
-    aviator: "aviator-style",
-    shield: "sport shield",
-    cateye: "cat-eye",
-    "kids-round": "round kids",
-    "kids-flex": "flexible kids",
-    contacts: "contact lenses",
-    case: "case",
-  };
-
-  const shape = variantDesc[product.variant] ?? "";
-  return `A pair of ${shape} sunglasses with ${product.frame} frames and ${product.lens}-tinted lenses.`;
 }
 
 const CROP_SIZE = 320; // tamaño del área de recorte en px
@@ -183,10 +113,8 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
   const [status, setStatus] = useState<Status>("idle");
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
-  // Descripción del producto generada automáticamente por IA (cuando no hay product.prompt)
-  const [autoDescription, setAutoDescription] = useState<string | null>(null);
   const [describing, setDescribing] = useState(false);
-  const selectedModel: ModelId = "google/gemini-2.5-flash-image";
+  const selectedModel = "google/gemini-2.5-flash-image";
   const [showHoverImg, setShowHoverImg] = useState(false);
   // Mobile: la lista de lentes se minimiza al hacer scroll hacia abajo
   const [listCollapsed, setListCollapsed] = useState(false);
@@ -226,22 +154,24 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
 
   // Cargar imagen guardada al montar el componente
   useEffect(() => {
+    let cancelled = false;
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const { dataUrl, savedScale, savedOffset, savedSource } = JSON.parse(saved);
         if (dataUrl) {
-          setImgUrl(dataUrl);
-          setScale(savedScale || 1);
-          setOffset(savedOffset || { x: 0, y: 0 });
-          if (savedSource) setPhotoSource(savedSource);
-          
           const img = new Image();
-          img.onload = () => setImgEl(img);
+          img.onload = () => {
+            if (cancelled) return;
+            setImgUrl(dataUrl);
+            setScale(savedScale || 1);
+            setOffset(savedOffset || { x: 0, y: 0 });
+            if (savedSource) setPhotoSource(savedSource);
+            setImgEl(img);
+          };
           img.onerror = () => {
             // Data restaurada corrupta: se descarta y se vuelve a los botones iniciales
             localStorage.removeItem(STORAGE_KEY);
-            setImgUrl(null);
           };
           img.src = dataUrl;
         }
@@ -249,28 +179,30 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
     } catch (e) {
       console.error("Error loading saved image:", e);
     }
+    return () => { cancelled = true; };
   }, []);
 
-  // Limpia el estado cuando se cierra o cambia el producto (excepto la imagen)
-  useEffect(() => {
+  // Limpia el estado cuando se cierra o cambia el producto (excepto la imagen).
+  // Al cerrar, el panel queda fuera de pantalla para que el primer render al
+  // reabrir ya parta desde la derecha (sin flash).
+  const [prevProduct, setPrevProduct] = useState<Product | null>(product);
+  if (prevProduct !== product) {
+    setPrevProduct(product);
     setStatus("idle");
     setResultUrl(null);
     setErrorMsg("");
-    setAutoDescription(null);
     setDescribing(false);
     setShowAdditionalProducts(false);
-    setShowHoverImg(false);
     setIsDragging(false);
     if (!product) {
       setListCollapsed(false);
-      lastScrollTopRef.current = 0;
+      setPanelX(window.innerWidth);
     }
-  }, [product]);
+  }
 
-  // Mientras el panel está cerrado, se mantiene fuera de pantalla para que
-  // el primer render al abrir ya parta desde la derecha (sin flash).
-  useLayoutEffect(() => {
-    if (!product) setPanelX(window.innerWidth);
+  // Al cerrar, resetea el tracking de scroll para la próxima apertura
+  useEffect(() => {
+    if (!product) lastScrollTopRef.current = 0;
   }, [product]);
 
   // Animación de entrada: cuando el panel se abre (product pasa de null a un valor),
@@ -291,9 +223,11 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
     };
   }, [product]);
 
-  // Activa la imagen hover del producto seleccionado
+  // Activa la imagen hover del producto seleccionado (diferida a rAF para que
+  // la transición de opacidad sea visible al abrir el panel)
   useEffect(() => {
-    setShowHoverImg(!!product?.hoverImg);
+    const raf = requestAnimationFrame(() => setShowHoverImg(!!product?.hoverImg));
+    return () => cancelAnimationFrame(raf);
   }, [product]);
 
   // Hace scroll al botón del producto seleccionado si está fuera de la vista
@@ -437,6 +371,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
       const img = new Image();
       img.onload = () => {
         justLoadedRef.current = true;
+        if (window.matchMedia("(max-width: 767px)").matches) setListCollapsed(true);
         setImgEl(img);
         // Guardar en localStorage (data URL persiste entre sesiones)
         try {
@@ -695,7 +630,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
   }, [imgEl, scale, offset]);
 
   // Recorta la foto con el encuadre actual y la envía junto a la imagen del catálogo a la IA
-  const handleSend = useCallback(async () => {
+  const handleSend = async () => {
     if (!imgEl || !product) return;
     if (!window.puter) {
       setErrorMsg("El servicio de IA aún se está cargando. Intenta en unos segundos.");
@@ -733,8 +668,8 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
 
     try {
       // Cargar la imagen del catálogo y convertirla a base64
-      const catalogImg = await loadImage(getProductReferenceImage(product!));
-      const { data: catalogBase64, mime: catalogMime } = imageToBase64(catalogImg, "image/jpeg", 0.9);
+      const catalogImg = await loadImage(getProductReferenceImage(product));
+      const { data: catalogBase64 } = imageToBase64(catalogImg, "image/jpeg", 0.9);
 
       const prompt =
         "Use the first image as the person's face — keep their identity, skin tone, hairstyle, expression, head pose, lighting, and background completely unchanged. " +
@@ -772,10 +707,10 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
       );
       setStatus("error");
     }
-  }, [imgEl, product, cropImage, selectedModel]);
+  };
 
   // Conectar con Puter (usuario temporal automático) y luego continuar con el envío
-  const handleConnect = useCallback(async () => {
+  const handleConnect = async () => {
     if (!window.puter?.auth) {
       setErrorMsg("El servicio de IA aún se está cargando. Intenta en unos segundos.");
       setStatus("error");
@@ -803,7 +738,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
     } finally {
       setConnecting(false);
     }
-  }, [handleSend]);
+  };
 
   // Scroll automático al paso de conexión cuando aparece
   useEffect(() => {
@@ -819,7 +754,6 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
   useEffect(() => {
     if (!justLoadedRef.current || !imgEl) return;
     justLoadedRef.current = false;
-    if (window.matchMedia("(max-width: 767px)").matches) setListCollapsed(true);
     // Scroll mínimo: solo lo justo para que el botón "Recortar y probar" quede visible
     const timer = setTimeout(() => {
       sendButtonRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
