@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { ArrowRightIcon } from "./icons";
 import { PortalFieldBackground } from "./PortalFieldBackground";
@@ -8,6 +7,7 @@ import { SlidingTextButton } from "./SlidingTextButton";
 import { VideoCarousel } from "./VideoCarousel";
 import { WaveDivider } from "./WaveDivider";
 import { useLowEndDevice } from "@/lib/useLowEndDevice";
+import { useIsMobile } from "@/lib/useMediaQuery";
 
 /** Interpola linealmente entre dos colores hex. */
 function interpolateColor(from: string, to: string, t: number): string {
@@ -27,16 +27,8 @@ export function Hero() {
   // Transición basada en pixeles de scroll del window.
   // Mobile: 0→120px (más rápido). Desktop: 0→200px.
   const { scrollY } = useScroll();
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
   const isLowEnd = useLowEndDevice();
-
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
-    const update = () => setIsMobile(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
 
   const estiloColor = useTransform(
     scrollY,
@@ -51,10 +43,11 @@ export function Hero() {
     <>
     <section id="inicio" className="relative overflow-hidden bg-white pt-16 md:pt-16">
       {/* Portal Field detrás de todo el hero — cubre texto e imagen.
-          En low-end se reemplaza el shader WebGL por un aura estática en
-          colores de marca: el canvas a 320vw × DPR satura GPUs débiles. */}
+          En low-end o mobile se reemplaza el shader WebGL por un aura
+          estática en colores de marca: el canvas a 320vw × DPR satura
+          GPUs débiles y en pantallas chicas no se aprecia. */}
       <div className="absolute inset-0 z-0 overflow-hidden">
-        {isLowEnd ? (
+        {isLowEnd || isMobile ? (
           <div
             aria-hidden="true"
             className="absolute left-1/2 top-1/2 aspect-square w-[320vw] -translate-x-1/2 -translate-y-1/2 rounded-full sm:w-[100rem] lg:w-[120rem]"

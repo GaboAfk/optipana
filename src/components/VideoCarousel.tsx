@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLowEndDevice } from "@/lib/useLowEndDevice";
+import { useIsMobile } from "@/lib/useMediaQuery";
 
 const REELS = [
   "/hero_reel/reel1.mp4",
@@ -31,30 +32,23 @@ export function VideoCarousel() {
   const [active, setActive] = useState(0);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
   const [inView, setInView] = useState(true);
   const [pageVisible, setPageVisible] = useState(true);
   const isLowEnd = useLowEndDevice();
+  // En mobile siempre modo ligero: reels reducidos, sin blur ni transforms 3D
+  const light = isLowEnd || isMobile;
 
-  const sources = isLowEnd ? REELS_LOW : REELS;
+  const sources = light ? REELS_LOW : REELS;
 
-  // Detecta mobile para cambiar la disposición de los videos adyacentes
+  // Carga todos los videos desde el inicio (en modo ligero se omite: preload="metadata" basta)
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
-    const update = () => setIsMobile(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
-
-  // Carga todos los videos desde el inicio (en low-end se omite: preload="metadata" basta)
-  useEffect(() => {
-    if (isLowEnd) return;
+    if (light) return;
     videoRefs.current.forEach((v) => {
       if (!v) return;
       v.load();
     });
-  }, [isLowEnd]);
+  }, [light]);
 
   // Pausa todo cuando el carrusel sale del viewport o la pestaña se oculta
   useEffect(() => {
@@ -82,7 +76,7 @@ export function VideoCarousel() {
         v.pause();
       }
     });
-  }, [active, isLowEnd, inView, pageVisible]);
+  }, [active, light, inView, pageVisible]);
 
   // Auto-advance cada 5s en bucle
   useEffect(() => {
@@ -109,12 +103,10 @@ export function VideoCarousel() {
           opacity = 1;
           zIndex = 10;
         } else if (isLeft) {
-          // En mobile: arriba; en desktop: izquierda. En low-end: solo transforms 2D.
+          // En mobile: arriba; en desktop: izquierda. En modo ligero: solo transforms 2D.
           transform = isMobile
-            ? isLowEnd
-              ? "translateY(-35%) scale(0.7)"
-              : "translateY(-45%) translateZ(-100px) scale(0.78) rotateX(15deg)"
-            : isLowEnd
+            ? "translateY(-35%) scale(0.7)"
+            : light
               ? "translateX(-85%) scale(0.75)"
               : "translateX(-85%) translateZ(-150px) scale(0.75) rotateY(20deg)";
           opacity = isMobile ? 0.4 : 0.3;
@@ -122,16 +114,14 @@ export function VideoCarousel() {
         } else if (isRight) {
           // En mobile: abajo; en desktop: derecha
           transform = isMobile
-            ? isLowEnd
-              ? "translateY(35%) scale(0.7)"
-              : "translateY(45%) translateZ(-100px) scale(0.78) rotateX(-15deg)"
-            : isLowEnd
+            ? "translateY(35%) scale(0.7)"
+            : light
               ? "translateX(85%) scale(0.75)"
               : "translateX(85%) translateZ(-150px) scale(0.75) rotateY(-20deg)";
           opacity = isMobile ? 0.4 : 0.3;
           zIndex = 5;
         } else {
-          transform = isLowEnd ? "scale(0.6)" : "translateZ(-200px) scale(0.6)";
+          transform = light ? "scale(0.6)" : "translateZ(-200px) scale(0.6)";
           opacity = 0;
           zIndex = 0;
         }
@@ -144,7 +134,7 @@ export function VideoCarousel() {
             poster={POSTERS[i]}
             muted
             loop
-            preload={isLowEnd ? "metadata" : "auto"}
+            preload={light ? "metadata" : "auto"}
             playsInline
             className="absolute inset-0 h-full w-full rounded-[2.5rem] object-cover transition-all duration-700 ease-out [&]:bg-transparent"
             style={{
@@ -152,7 +142,7 @@ export function VideoCarousel() {
               opacity,
               zIndex,
               // blur sobre video en reproducción es muy caro en GPUs débiles
-              filter: !isActive && !isLowEnd ? "blur(4px)" : "none",
+              filter: !isActive && !light ? "blur(4px)" : "none",
               backgroundColor: "transparent",
               background: "transparent",
             }}
