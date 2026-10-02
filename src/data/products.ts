@@ -86,12 +86,13 @@ function makeVRProduct(
   vrModelId: string,
   name: string,
   category: Category,
+  gender: Gender,
   frame: string,
   selfie?: string,
 ): Product {
   const glasses = `/glasses_models/${vrModelId}-glasses.avif`;
   return {
-    ...makeProduct(id, selfie ? `/glasses_models/${selfie}` : glasses, selfie ? glasses : undefined, name, category, "unisex", frame, "purple"),
+    ...makeProduct(id, selfie ? `/glasses_models/${selfie}` : glasses, selfie ? glasses : undefined, name, category, gender, frame, "purple"),
     price: null,
     vrModelId,
     "try-on": false,
@@ -103,13 +104,13 @@ export function formatProductPrice(price: Product["price"]): string {
 }
 
 export const products: Product[] = [
-  makeVRProduct(29, "ardsley", "Ardsley", "recetados", "tortoise", "ardsley-selfie.avif"),
-  makeVRProduct(30, "caleb", "Caleb", "recetados", "black", "caleb-selfie.jpg"),
-  makeVRProduct(31, "duncan", "Duncan", "recetados", "brown", "duncan-selfie.avif"),
-  makeVRProduct(32, "morley", "Morley", "recetados", "clear", "morley-selfie.jpg"),
-  makeVRProduct(33, "penn-sun", "Penn Sun", "sol", "tortoise"),
+  makeVRProduct(29, "ardsley", "Ardsley", "recetados", "unisex", "tortoise", "ardsley-selfie.avif"),
+  makeVRProduct(30, "caleb", "Caleb", "recetados", "unisex", "black", "caleb-selfie.jpg"),
+  makeVRProduct(31, "duncan", "Duncan", "recetados", "unisex", "brown", "duncan-selfie.avif"),
+  makeVRProduct(32, "morley", "Morley", "recetados", "caballeros", "clear", "morley-selfie.jpg"),
+  makeVRProduct(33, "penn-sun", "Penn Sun", "sol", "unisex", "tortoise"),
   makeProduct(1, "/glasses_catalog/selfies/209675188-1-tort.jpg", "/glasses_catalog/209675188-2.jpg", "Mariposa Carey", "recetados", "damas", "tortoise", "orange"),
-  makeProduct(2, "/glasses_catalog/selfies/209680312-1-brown.jpg", "/glasses_catalog/209680312-1.jpg", "Rectangular Café", "recetados", "unisex", "brown", "purple"),
+  makeProduct(2, "/glasses_catalog/selfies/209680312-1-brown.jpg", "/glasses_catalog/209680312-1.jpg", "Rectangular Café", "recetados", "damas", "brown", "purple"),
   makeProduct(4, "/glasses_catalog/selfies/209833250-2-brown.jpg", "/glasses_catalog/209833250-1-brown.jpg", "Clásico Ámbar", "recetados", "damas", "brown", "purple"),
   makeProduct(5, "/glasses_catalog/selfies/209833279-2-clear.jpg", "/glasses_catalog/209833279-1-clear.jpg", "Aviador Cristal", "recetados", "damas", "clear", "orange"),
   { ...makeProduct(6, "/glasses_catalog/209833300-1-red.jpg", undefined, "Rectangular Rubí", "recetados", "damas", "red", "purple"), vrModelId: "209833300-red" },
