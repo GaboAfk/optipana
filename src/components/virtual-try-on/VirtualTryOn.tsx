@@ -1,14 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getFaceLandmarker, disposeFaceLandmarker, computeFacePose } from "./faceLandmarker";
+import { useSearchParams } from "next/navigation";
+import { getFaceLandmarker, disposeFaceLandmarker, computeFacePose, extractFaceTransform } from "./faceLandmarker";
 import { GlassesRenderer } from "./glassesRenderer";
-import { GLASSES_CATALOG } from "./glassesCatalog";
-import type { GlassesModel } from "./types";
+import { GLASSES_CATALOG, resolveGlassesModelId } from "./glassesCatalog";
 
 type Status = "idle" | "loading-model" | "running" | "error";
 
 export function VirtualTryOn() {
+  const searchParams = useSearchParams();
+  const initialModelId = resolveGlassesModelId(searchParams.get("model"));
+  return <VirtualTryOnSession key={initialModelId} initialModelId={initialModelId} />;
+}
+
+function VirtualTryOnSession({ initialModelId }: { initialModelId: string | null }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -19,10 +25,8 @@ export function VirtualTryOn() {
   const frameCountRef = useRef<number>(0);
 
   // Catálogo de modelos 3D disponibles (todos los .glb de public/glasses_models).
-  const [models] = useState<GlassesModel[]>(GLASSES_CATALOG);
-  const [selectedId, setSelectedId] = useState<string | null>(
-    GLASSES_CATALOG.length ? GLASSES_CATALOG[0].id : null,
-  );
+  const models = GLASSES_CATALOG;
+  const [selectedId, setSelectedId] = useState<string | null>(initialModelId);
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [faceDetected, setFaceDetected] = useState(false);
@@ -97,6 +101,9 @@ export function VirtualTryOn() {
       });
     }
     const renderer = rendererRef.current;
+    let cancelled = false;
+    let detecting = false;
+    lastVideoTimeRef.current = -1;
 
     const loop = async () => {
       rafRef.current = requestAnimationFrame(loop);
@@ -115,33 +122,49 @@ export function VirtualTryOn() {
 
       // Detectar solo con frames nuevos.
       const now = video.currentTime;
-      if (now !== lastVideoTimeRef.current) {
+      if (!detecting && now !== lastVideoTimeRef.current) {
+        detecting = true;
         lastVideoTimeRef.current = now;
         try {
           const landmarker = await getFaceLandmarker();
+          if (cancelled) return;
           const result = landmarker.detectForVideo(video, performance.now());
-          const pose = computeFacePose(result, video.videoWidth);
+          const pose = computeFacePose(result, video.videoWidth, video.videoHeight);
+          const transform = extractFaceTransform(result);
           frameCountRef.current++;
           if (frameCountRef.current % 10 === 0) {
             setDebugInfo(
               `detected=${pose.detected} cx=${pose.centerX.toFixed(3)} cy=${pose.centerY.toFixed(3)} ` +
                 `eye=${pose.eyeDistance.toFixed(1)}px video=${video.videoWidth}x${video.videoHeight} ` +
-                `landmarks=${result.faceLandmarks?.length ?? 0} roll=${pose.roll.toFixed(1)} yaw=${pose.yaw.toFixed(1)}`,
+                `landmarks=${result.faceLandmarks?.length ?? 0} roll=${pose.roll.toFixed(1)} ` +
+                `mat3d=${transform.matrix ? "yes" : "no"}`,
             );
           }
           setFaceDetected(pose.detected);
-          renderer.applyPose(pose, video.videoWidth);
+          renderer.applyPose(
+            pose, transform, video.videoWidth, performance.now(),
+            result.faceLandmarks[0], video.videoHeight,
+          );
         } catch (e) {
+          if (cancelled) return;
+          setFaceDetected(false);
           const msg = e instanceof Error ? e.message : String(e);
           setDebugInfo(`ERROR detectForVideo: ${msg}`);
           // Si detect falla, ocultar los lentes.
-          rendererRef.current?.applyPose({ centerX: 0.5, centerY: 0.5, eyeDistance: 0, roll: 0, yaw: 0, pitch: 0, faceWidth: 0, detected: false }, video.videoWidth);
+          rendererRef.current?.applyPose(
+            { centerX: 0.5, centerY: 0.5, eyeDistance: 0, roll: 0, yaw: 0, pitch: 0, faceWidth: 0, detected: false },
+            { matrix: null, detected: false },
+            video.videoWidth,
+          );
+        } finally {
+          detecting = false;
         }
       }
       renderer.render();
     };
     rafRef.current = requestAnimationFrame(loop);
     return () => {
+      cancelled = true;
       cancelAnimationFrame(rafRef.current);
       rafRef.current = 0;
     };
@@ -149,7 +172,7 @@ export function VirtualTryOn() {
 
   // Carga el modelo 3D cuando cambia la selección.
   useEffect(() => {
-    if (!selectedId || !rendererRef.current) return;
+    if (!cameraActive || !selectedId || !rendererRef.current) return;
     const model = models.find((m) => m.id === selectedId);
     if (!model) return;
     let cancelled = false;
@@ -168,7 +191,7 @@ export function VirtualTryOn() {
     return () => {
       cancelled = true;
     };
-  }, [selectedId, models]);
+  }, [selectedId, models, cameraActive]);
 
   // Limpieza al desmontar.
   useEffect(() => {
@@ -272,6 +295,8 @@ export function VirtualTryOn() {
             return (
               <button
                 key={m.id}
+                type="button"
+                aria-pressed={active}
                 onClick={() => setSelectedId(m.id)}
                 className={`flex shrink-0 flex-col items-center gap-1 rounded-xl border-2 p-1.5 transition ${
                   active ? "border-brand-orange bg-brand-orange-soft" : "border-transparent bg-brand-bg hover:border-brand-orange/40"

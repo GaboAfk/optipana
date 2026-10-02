@@ -18,9 +18,10 @@ export interface Product {
   category: Category;
   gender: Gender;
   brand: string;
-  price: number; // USD
+  price: number | null; // USD
   img: string;
   hoverImg?: string;
+  vrModelId?: string;
   variant: ProductVariant;
   frame: string; // color de la montura
   lens: string; // tinte del lente
@@ -80,14 +81,40 @@ function makeProduct(
   };
 }
 
+function makeVRProduct(
+  id: number,
+  vrModelId: string,
+  name: string,
+  category: Category,
+  frame: string,
+  selfie?: string,
+): Product {
+  const glasses = `/glasses_models/${vrModelId}-glasses.avif`;
+  return {
+    ...makeProduct(id, selfie ? `/glasses_models/${selfie}` : glasses, selfie ? glasses : undefined, name, category, "unisex", frame, "purple"),
+    price: null,
+    vrModelId,
+    "try-on": false,
+  };
+}
+
+export function formatProductPrice(price: Product["price"]): string {
+  return price === null ? "Consultar precio" : `$${price}`;
+}
+
 export const products: Product[] = [
+  makeVRProduct(29, "ardsley", "Ardsley", "recetados", "tortoise", "ardsley-selfie.avif"),
+  makeVRProduct(30, "caleb", "Caleb", "recetados", "black", "caleb-selfie.jpg"),
+  makeVRProduct(31, "duncan", "Duncan", "recetados", "brown", "duncan-selfie.avif"),
+  makeVRProduct(32, "morley", "Morley", "recetados", "clear", "morley-selfie.jpg"),
+  makeVRProduct(33, "penn-sun", "Penn Sun", "sol", "tortoise"),
   makeProduct(1, "/glasses_catalog/selfies/209675188-1-tort.jpg", "/glasses_catalog/209675188-2.jpg", "Mariposa Carey", "recetados", "damas", "tortoise", "orange"),
   makeProduct(2, "/glasses_catalog/selfies/209680312-1-brown.jpg", "/glasses_catalog/209680312-1.jpg", "Rectangular Café", "recetados", "unisex", "brown", "purple"),
   makeProduct(4, "/glasses_catalog/selfies/209833250-2-brown.jpg", "/glasses_catalog/209833250-1-brown.jpg", "Clásico Ámbar", "recetados", "damas", "brown", "purple"),
   makeProduct(5, "/glasses_catalog/selfies/209833279-2-clear.jpg", "/glasses_catalog/209833279-1-clear.jpg", "Aviador Cristal", "recetados", "damas", "clear", "orange"),
-  makeProduct(6, "/glasses_catalog/209833300-1-red.jpg", undefined, "Rectangular Rubí", "recetados", "damas", "red", "purple"),
+  { ...makeProduct(6, "/glasses_catalog/209833300-1-red.jpg", undefined, "Rectangular Rubí", "recetados", "damas", "red", "purple"), vrModelId: "209833300-red" },
   makeProduct(7, "/glasses_catalog/209833309-1-multi.jpg", undefined, "Panto Mosaico", "recetados", "unisex", "multicolor", "orange"),
-  makeProduct(8, "/glasses_catalog/selfies/209833317-2-orange.jpg", "/glasses_catalog/209833317-1-orange.jpg", "Oversize Naranja", "sol", "damas", "orange", "purple"),
+  { ...makeProduct(8, "/glasses_catalog/selfies/209833317-2-orange.jpg", "/glasses_catalog/209833317-1-orange.jpg", "Oversize Naranja", "sol", "damas", "orange", "purple"), vrModelId: "209833317-orange" },
   makeProduct(9, "/glasses_catalog/209833338-1-green.jpg", undefined, "Esmeralda Bold", "recetados", "damas", "green", "orange"),
   makeProduct(10, "/glasses_catalog/selfies/209833378-2-brown.jpg", "/glasses_catalog/209833378-1-brown.jpg", "Cuadrado Ámbar", "recetados", "damas", "brown", "purple"),
   makeProduct(11, "/glasses_catalog/209833408-1-multi.jpg", undefined, "Mosaico Carmesí", "recetados", "damas", "multicolor", "orange"),

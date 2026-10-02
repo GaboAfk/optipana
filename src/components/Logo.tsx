@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 type LogoProps = {
   light?: boolean;
@@ -10,8 +11,8 @@ type LogoProps = {
  */
 export function Logo({ light = false, className = "" }: LogoProps) {
   return (
-    <a
-      href="#inicio"
+    <Link
+      href="/#inicio"
       aria-label="OptiPana — inicio"
       className={`inline-flex items-center ${className}`}
     >
@@ -23,6 +24,6 @@ export function Logo({ light = false, className = "" }: LogoProps) {
         priority
         className={`h-10 w-auto object-contain ${light ? "brightness-0 invert" : ""}`}
       />
-    </a>
+    </Link>
   );
 }

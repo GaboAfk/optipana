@@ -37,3 +37,35 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+.nav-vr-link {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.nav-vr-link::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+  inset: -50% auto -50% 0;
+  width: 45%;
+  background: linear-gradient(110deg, transparent, rgb(255 255 255 / 40%), transparent);
+  transform: translateX(-250%) skewX(-20deg);
+}
+
+@keyframes nav-vr-shine {
+  0%, 60% {
+    transform: translateX(-250%) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(350%) skewX(-20deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .nav-vr-link::after {
+    animation: nav-vr-shine 3.5s ease-in-out infinite;
+  }
+}

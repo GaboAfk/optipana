@@ -4,23 +4,6 @@
 import type { GlassesModel } from "./types";
 
 export const GLASSES_CATALOG: GlassesModel[] = [
-  // --- Modelos con SVG preview (del manifest) ---
-  {
-    id: "209833317-orange",
-    name: "Oversize Naranja",
-    url: "/glasses_models/209833317-orange.glb",
-    preview: "/glasses_models/209833317-orange-preview.svg",
-    referenceImage: "/glasses_catalog/209833317-1-orange.jpg",
-    estimatedBoundsMm: [154.4, 62.35, 145.15],
-  },
-  {
-    id: "209833300-red",
-    name: "Rectangular Rubí",
-    url: "/glasses_models/209833300-red.glb",
-    preview: "/glasses_models/209833300-red-preview.svg",
-    referenceImage: "/glasses_catalog/209833300-1-red.jpg",
-    estimatedBoundsMm: [143.44, 41.76, 144],
-  },
   // --- Modelos con preview .avif (fuera del manifest) ---
   {
     id: "ardsley",
@@ -56,4 +39,29 @@ export const GLASSES_CATALOG: GlassesModel[] = [
     url: "/glasses_models/penn-sun-sbf-oak-barrel-with-polished-gold_wide.glb",
     preview: "/glasses_models/penn-sun-glasses.avif",
   },
+  // --- Modelos con SVG preview (del manifest) ---
+  {
+    id: "209833317-orange",
+    name: "Oversize Naranja",
+    url: "/glasses_models/209833317-orange.glb",
+    preview: "/glasses_models/209833317-orange-preview.svg",
+    referenceImage: "/glasses_catalog/209833317-1-orange.jpg",
+    estimatedBoundsMm: [154.4, 62.35, 145.15],
+  },
+  {
+    id: "209833300-red",
+    name: "Rectangular Rubí",
+    url: "/glasses_models/209833300-red.glb",
+    preview: "/glasses_models/209833300-red-preview.svg",
+    referenceImage: "/glasses_catalog/209833300-1-red.jpg",
+    estimatedBoundsMm: [143.44, 41.76, 144],
+  },
 ];
+
+export function resolveGlassesModelId(id: string | null | undefined): string | null {
+  return GLASSES_CATALOG.find((model) => model.id === id)?.id ?? GLASSES_CATALOG[0]?.id ?? null;
+}
+
+export function getVirtualTryOnHref(modelId: string): string {
+  return `/probador-virtual?model=${encodeURIComponent(modelId)}`;
+}

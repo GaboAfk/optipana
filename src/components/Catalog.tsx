@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CATEGORIES, CATEGORY_LABELS, GENDERS, products, type Category, type Gender, type Product } from "@/data/products";
+import Link from "next/link";
+import { CATEGORIES, CATEGORY_LABELS, GENDERS, products, formatProductPrice, type Category, type Gender, type Product } from "@/data/products";
 import { WaveDivider } from "./WaveDivider";
-import { WhatsAppIcon } from "./icons";
+import { GlassesIcon, WhatsAppIcon } from "./icons";
+import { getVirtualTryOnHref } from "./virtual-try-on/glassesCatalog";
 import { waLink } from "@/lib/site";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { TryOnPanel } from "./TryOnPanel";
@@ -205,7 +207,9 @@ export function Catalog() {
 }
 
 function ProductCard({ product, onTryOn }: { product: (typeof products)[number]; onTryOn?: () => void }) {
-  const waMessage = `Hola OptiPana, me interesa el producto "${product.name}" (${product.brand}) — $${product.price} USD.`;
+  const waMessage = `Hola OptiPana, me interesa el producto "${product.name}" (${product.brand})${
+    product.price === null ? ". Quisiera consultar precio y disponibilidad." : ` — $${product.price} USD.`
+  }`;
   const [touched, setTouched] = useState(false);
 
   return (
@@ -224,7 +228,7 @@ function ProductCard({ product, onTryOn }: { product: (typeof products)[number];
         <img
           src={product.img}
           alt={product.name}
-          className={`h-full w-full object-cover transition-all duration-500 group-hover:scale-105 ${product.hoverImg ? "group-hover:opacity-0" : ""} ${touched ? "scale-105" : ""} ${product.hoverImg && touched ? "opacity-0" : ""}`}
+          className={`h-full w-full transition-all duration-500 group-hover:scale-105 ${product.hoverImg ? "group-hover:opacity-0" : ""} ${touched ? "scale-105" : ""} ${product.hoverImg && touched ? "opacity-0" : ""} ${product.img.includes("-glasses.") ? "bg-white p-7 object-contain" : "object-cover"}`}
         />
         {product.hoverImg && (
           <>
@@ -232,7 +236,7 @@ function ProductCard({ product, onTryOn }: { product: (typeof products)[number];
             <img
               src={product.hoverImg}
               alt={product.name}
-              className={`absolute inset-0 h-full w-full object-cover opacity-0 transition-all duration-500 group-hover:scale-105 group-hover:opacity-100 ${touched ? "scale-105 opacity-100" : ""}`}
+              className={`absolute inset-0 h-full w-full opacity-0 transition-all duration-500 group-hover:scale-105 group-hover:opacity-100 ${touched ? "scale-105 opacity-100" : ""} ${product.vrModelId ? "bg-white p-7 object-contain" : "object-cover"}`}
             />
           </>
         )}
@@ -251,10 +255,24 @@ function ProductCard({ product, onTryOn }: { product: (typeof products)[number];
         </p>
         <h3 className="font-display text-lg font-bold leading-snug text-brand-ink">{product.name}</h3>
 
-        <div className="mt-auto flex items-end justify-between gap-3 border-t border-brand-ink/5 pt-4">
-          <p className="font-display text-2xl font-bold text-brand-orange">${product.price}</p>
-          <div className="flex gap-2">
-            {onTryOn && (
+        <div className="mt-auto flex flex-wrap items-end justify-between gap-3 border-t border-brand-ink/5 pt-4">
+          <p className={`font-display font-bold text-brand-orange ${product.price === null ? "text-sm" : "text-2xl"}`}>
+            {formatProductPrice(product.price)}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {product.vrModelId ? (
+              <Link
+                href={getVirtualTryOnHref(product.vrModelId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                prefetch={false}
+                aria-label={`Probar ${product.name} en VR (se abre en una pestaña nueva)`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-brand-orange-soft px-3 py-2.5 text-xs font-bold text-brand-orange transition-all hover:-translate-y-0.5 hover:bg-brand-orange hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-purple"
+              >
+                <GlassesIcon className="h-4 w-4" />
+                Probar VR
+              </Link>
+            ) : onTryOn ? (
               <button
                 type="button"
                 onClick={onTryOn}
@@ -266,7 +284,7 @@ function ProductCard({ product, onTryOn }: { product: (typeof products)[number];
                 </svg>
                 Probar
               </button>
-            )}
+            ) : null}
             <a
               href={waLink(waMessage)}
               target="_blank"

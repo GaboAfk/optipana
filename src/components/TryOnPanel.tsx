@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { products, type Category, type Gender, type Product } from "@/data/products";
+import { products, formatProductPrice, type Category, type Gender, type Product } from "@/data/products";
 import { CloseIcon } from "./icons";
 import { waLink } from "@/lib/site";
 
@@ -971,7 +971,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-brand-ink line-clamp-1">{p.name}</p>
                     <p className="text-[10px] text-brand-ink/50">{p.brand}</p>
-                    <p className="text-xs font-bold text-brand-orange mt-1">${p.price}</p>
+                    <p className="text-xs font-bold text-brand-orange mt-1">{formatProductPrice(p.price)}</p>
                   </div>
                 </button>
               ))}
@@ -1420,7 +1420,7 @@ export function TryOnPanel({ product, onClose, onProductChange, activeCategory, 
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={p.hoverImg ?? p.img} alt={p.name} className="h-16 w-16 rounded-lg object-cover" />
                       <span className="line-clamp-2 text-[11px] font-bold leading-tight text-brand-ink">{p.name}</span>
-                      <span className="text-[11px] font-bold text-brand-orange">${p.price}</span>
+                      <span className="text-[11px] font-bold text-brand-orange">{formatProductPrice(p.price)}</span>
                     </button>
                   ))}
                 </div>

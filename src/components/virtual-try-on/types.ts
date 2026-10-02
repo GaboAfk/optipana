@@ -38,17 +38,30 @@ export const DEFAULT_CALIBRATION: GlassesCalibration = {
 
 /** Resultado del tracking facial de un frame. */
 export interface FacePose {
-  /** Centro entre los ojos (puente), en coords normalizadas [0..1] del video. */
+  /** Puente nasal (landmark 168), en coords normalizadas [0..1] del video. */
   centerX: number;
   centerY: number;
-  /** Distancia entre centros oculares, en px del video. */
+  /** Distancia 3D entre centros oculares, en px equivalentes del video. */
   eyeDistance: number;
-  /** Rotación de cabeza en grados. */
+  /** Rotación de cabeza en grados (fallback si no hay matriz 3D). */
   roll: number;
   yaw: number;
   pitch: number;
-  /** Ancho del rostro en px (para escalar la montura). */
+  /** Ancho 3D del rostro en px equivalentes (para escalar la montura). */
   faceWidth: number;
   /** Confianza de detección. */
+  detected: boolean;
+}
+
+/**
+ * Transformación facial 3D de MediaPipe.
+ * La matriz 4x4 proviene de `facialTransformationMatrixes` y representa
+ * la pose de la cabeza en el sistema de coordenadas de la cámara
+ * (convención OpenGL: X derecha, Y arriba, Z hacia la cámara).
+ * Los 16 elementos están en orden column-major (formato nativo de MediaPipe C++).
+ */
+export interface FaceTransform {
+  /** Matriz 4x4 en column-major (16 elementos) o null si no disponible. */
+  matrix: number[] | null;
   detected: boolean;
 }
